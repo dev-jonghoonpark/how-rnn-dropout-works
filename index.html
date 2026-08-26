@@ -1,0 +1,1288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="RNN 드롭아웃 인터랙티브 교육 자료 — 왜 드롭아웃을 층 사이의 비순환 연결에만 걸고 시간 축의 순환 연결에는 절대 걸지 않는가. 노이즈가 L+1번만 곱해지는 이유를 브라우저에서 직접 실험 (Zaremba, Sutskever &amp; Vinyals, 2015)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%B3%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<meta charset="utf-8">
+<title>드롭아웃은 왜 순환 연결을 피해 가는가 — 인터랙티브 노트</title>
+
+<style>
+/* ---------- tokens ---------- */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f5;
+  --surface: #fdfdfc;
+  --surface2: #eff1ee;
+  --ink: #171a18;
+  --ink2: #565b57;
+  --muted: #898781;
+  --line: #e1e0d9;
+  --hairline: rgba(11,11,11,0.10);
+  --accent: #157a63;
+  --accent-soft: #ddeee7;
+  --accent-ink: #0d5c4a;
+  --code-bg: #eef1ee;
+  --s1: #2a78d6;          /* 세로 = 비순환 연결 (blue) */
+  --s2: #eb6834;          /* 가로 = 순환 연결 / 기억 (orange) */
+  --s3: #8a5fd0;          /* 비교 / 후속 연구 (purple) */
+  --good: #0ca30c;
+  --crit: #d03b3b;
+  --grid: #e1e0d9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #0f1211; --surface: #181c1a; --surface2: #202522;
+    --ink: #edf0ed; --ink2: #aab3ac; --muted: #898781;
+    --line: #262b28; --hairline: rgba(255,255,255,0.10);
+    --accent: #43c3a0; --accent-soft: #14352c; --accent-ink: #6fd7ba;
+    --code-bg: #141816; --s1: #5b9cf0; --s2: #e9743f; --s3: #a583e2; --grid: #2c2c2a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1211; --surface: #181c1a; --surface2: #202522;
+  --ink: #edf0ed; --ink2: #aab3ac; --muted: #898781;
+  --line: #262b28; --hairline: rgba(255,255,255,0.10);
+  --accent: #43c3a0; --accent-soft: #14352c; --accent-ink: #6fd7ba;
+  --code-bg: #141816; --s1: #5b9cf0; --s2: #e9743f; --s3: #a583e2; --grid: #2c2c2a;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f5; --surface: #fdfdfc; --surface2: #eff1ee;
+  --ink: #171a18; --ink2: #565b57; --muted: #898781;
+  --line: #e1e0d9; --hairline: rgba(11,11,11,0.10);
+  --accent: #157a63; --accent-soft: #ddeee7; --accent-ink: #0d5c4a;
+  --code-bg: #eef1ee; --s1: #2a78d6; --s2: #eb6834; --s3: #8a5fd0; --grid: #e1e0d9;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  line-height: 1.72;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 880px; margin: 0 auto; padding: 28px 20px 90px; }
+h1 { font-size: 1.72rem; line-height: 1.35; letter-spacing: -0.015em; margin: 8px 0 10px; }
+h2 { font-size: 1.28rem; letter-spacing: -0.01em; margin: 60px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.04rem; margin: 26px 0 8px; }
+p { margin: 12px 0; }
+a { color: var(--accent-ink); }
+code {
+  background: var(--code-bg);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.87em;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: .88rem;
+}
+pre code { background: none; padding: 0; }
+strong { font-weight: 700; }
+.lede { color: var(--ink2); font-size: 1.02rem; }
+.kicker {
+  display: inline-block; font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+  color: var(--accent-ink); background: var(--accent-soft);
+  border-radius: 999px; padding: 3px 12px; margin-bottom: 6px;
+}
+.meta { color: var(--muted); font-size: .88rem; }
+.note {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  margin: 18px 0;
+  font-size: .95rem;
+}
+.warn {
+  background: color-mix(in srgb, var(--crit) 8%, var(--surface));
+  border-left: 3px solid var(--crit);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  margin: 18px 0;
+  font-size: .95rem;
+}
+.demo {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 20px 0;
+}
+.demo .demo-title { font-weight: 700; font-size: .95rem; margin-bottom: 4px; }
+.demo .demo-sub { color: var(--ink2); font-size: .87rem; margin-bottom: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 10px 0 14px; }
+.controls label { font-size: .88rem; color: var(--ink2); }
+button {
+  background: var(--surface2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 14px;
+  font-size: .9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { cursor: default; opacity: .95; }
+input[type=range] { accent-color: var(--accent); vertical-align: middle; }
+.readout {
+  display: inline-block; min-width: 2.2em; text-align: center;
+  font-family: ui-monospace, Menlo, monospace; font-size: .9rem;
+  background: var(--code-bg); border-radius: 6px; padding: 1px 8px;
+}
+.stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.stat {
+  background: var(--surface2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 14px; font-size: .85rem; color: var(--ink2);
+}
+.stat b { display: block; font-size: 1.12rem; color: var(--ink); font-family: ui-monospace, Menlo, monospace; }
+.stat.hl { border-color: var(--accent); background: var(--accent-soft); }
+.stat.hl b { color: var(--accent-ink); }
+.stat.bad { border-color: var(--crit); background: color-mix(in srgb, var(--crit) 9%, var(--surface)); }
+.stat.bad b { color: var(--crit); }
+canvas { max-width: 100%; }
+.scrollx { overflow-x: auto; }
+.panelrow { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.panel { text-align: center; }
+.panel .cap { font-size: .8rem; color: var(--ink2); margin-top: 6px; line-height: 1.4; }
+table.tbl { border-collapse: collapse; width: 100%; font-size: .88rem; margin: 14px 0; }
+table.tbl th, table.tbl td { border: 1px solid var(--line); padding: 6px 10px; text-align: center; }
+table.tbl th { background: var(--surface2); font-weight: 600; }
+table.tbl td.rowhead { text-align: left; font-weight: 600; background: var(--surface2); }
+table.tbl td.hl { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .82rem; color: var(--ink2); margin-top: 8px; }
+.legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.legend .ln { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ink2); margin-right: 5px; vertical-align: 4px; }
+/* vectors */
+.vecrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: .86rem; }
+.vecrow .vlabel { min-width: 132px; color: var(--ink2); font-size: .84rem; }
+.cellrow { display: flex; gap: 5px; }
+.cell {
+  min-width: 54px; text-align: center; padding: 5px 6px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--surface2);
+  font-family: ui-monospace, Menlo, monospace; font-size: .82rem;
+}
+.cell.zero { border-color: var(--crit); background: color-mix(in srgb, var(--crit) 14%, var(--surface)); color: var(--crit); font-weight: 700; }
+.cell.keep { border-color: var(--s1); }
+.cell.mem { border-color: var(--s2); }
+/* bars */
+.bars { display: grid; gap: 8px; margin: 14px 0; }
+.bar-row { display: grid; grid-template-columns: 190px 1fr 56px; gap: 10px; align-items: center; font-size: .86rem; }
+.bar-track { background: var(--surface2); border-radius: 6px; height: 20px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 6px; background: var(--s1); transition: width .6s ease; }
+.bar-fill.acc { background: var(--accent); }
+.bar-fill.bad { background: var(--crit); }
+.bar-val { font-family: ui-monospace, Menlo, monospace; text-align: right; }
+@media (max-width: 560px) { .bar-row { grid-template-columns: 120px 1fr 50px; } .vecrow .vlabel { min-width: 100%; } }
+/* quiz */
+.quiz { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 18px 0; }
+.quiz .q { font-weight: 600; margin-bottom: 12px; }
+.quiz .opts { display: grid; gap: 8px; }
+.quiz .opts button { text-align: left; padding: 10px 14px; border-radius: 9px; font-size: .92rem; }
+.quiz .opts button.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--surface)); }
+.quiz .opts button.wrong { border-color: var(--crit); background: color-mix(in srgb, var(--crit) 10%, var(--surface)); }
+.quiz .expl { display: none; margin-top: 12px; font-size: .9rem; color: var(--ink2); border-top: 1px dashed var(--line); padding-top: 10px; }
+.quiz .expl.show { display: block; }
+.theme-toggle { position: fixed; top: 14px; right: 14px; z-index: 10; border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
+.toc { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 22px; margin: 22px 0; font-size: .92rem; }
+.toc ol { margin: 6px 0 2px; padding-left: 20px; }
+.toc li { margin: 3px 0; }
+footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="테마 전환">🌗 테마</button>
+<main>
+
+<span class="kicker">HOW AI WORKS</span>
+<h1>드롭아웃은 왜<br>순환 연결을 피해 가는가</h1>
+<p class="lede">
+드롭아웃은 피드포워드 신경망을 살렸지만 RNN에서는 오히려 성능을 망가뜨렸습니다.
+Zaremba·Sutskever·Vinyals는 아주 작은 수정 하나로 이 문제를 풀었습니다 —
+<strong>드롭아웃을 층 사이의 비순환(세로) 연결에만 걸고, 시간을 건너는 순환(가로) 연결에는 절대 걸지 않는다.</strong>
+이 한 줄이 왜 결정적인지, 노이즈가 몇 번 곱해지는지를 브라우저에서 직접 세어 봅니다.
+</p>
+<p class="meta">
+원 논문: <a href="https://arxiv.org/abs/1409.2329" target="_blank" rel="noopener">Recurrent Neural Network Regularization</a>
+(Zaremba, Sutskever &amp; Vinyals, 2014 · ICLR 2015 투고) ·
+저자 구현: <a href="https://github.com/wojzaremba/lstm" target="_blank" rel="noopener">wojzaremba/lstm</a>
+</p>
+
+<div class="toc">
+<strong>차례</strong>
+<ol>
+<li><a href="#s1">문제 — 큰 RNN은 과적합하는데, 드롭아웃을 쓰면 더 나빠졌다</a></li>
+<li><a href="#s2">지도 — LSTM 격자의 두 방향</a></li>
+<li><a href="#s3">수식 — D는 어디에 붙는가</a></li>
+<li><a href="#s4">핵심 — 노이즈는 몇 번 곱해지는가 (L+1 vs L+1+Δt)</a></li>
+<li><a href="#s5">기억은 얼마나 살아남는가 — 200개 유닛 시뮬레이션</a></li>
+<li><a href="#s6">게이트 위에서 확인하기 — LSTM 한 스텝 직접 계산</a></li>
+<li><a href="#s7">논문의 실험 결과</a></li>
+<li><a href="#s8">그 후 — 순환 연결에 드롭아웃을 "제대로" 거는 법</a></li>
+<li><a href="#s9">정리 — 한 문장으로</a></li>
+<li><a href="#s10">이해도 퀴즈</a></li>
+</ol>
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s1">§1 문제 — 큰 RNN은 과적합하는데, 드롭아웃을 쓰면 더 나빠졌다</h2>
+
+<p>
+2014년의 상황은 이랬습니다. 드롭아웃(Srivastava, 2013)은 피드포워드 신경망에서
+<em>가장 강력한 정규화 기법</em>이었습니다. 그런데 RNN에 그대로 가져다 쓰면 잘 동작하지 않았습니다.
+</p>
+<p>
+결과는 실전에서의 제약으로 나타났습니다. 큰 RNN은 과적합하고, 과적합을 막을 수단이 없으니
+<strong>애초에 모델을 작게 만들 수밖에</strong> 없었습니다. 논문 서두의 표현 그대로입니다 —
+"practical applications of RNNs often use models that are too small because large RNNs tend to overfit."
+</p>
+<p>
+당시의 진단은 Bayer et al. (2013)이 내놓은 것이었습니다: <em>순환(recurrence)이 노이즈를 증폭시켜 학습을 해친다.</em>
+이 논문은 그 진단은 맞지만 결론이 틀렸다고 말합니다. 노이즈를 증폭하는 건 순환이지,
+드롭아웃 자체가 아니라는 것입니다. <strong>순환이 지나지 않는 곳에만 노이즈를 넣으면 됩니다.</strong>
+</p>
+
+<div class="note">
+<b>미리 보는 결론.</b> Penn Tree Bank 언어 모델에서 정규화 없는 LSTM의 테스트 퍼플렉시티는 114.5.
+같은 방식에 드롭아웃을 이렇게 적용한 큰 LSTM은 <b>78.4</b>. 모델을 키울 수 있게 되면서
+층당 유닛이 200개에서 1,500개로 늘었습니다. (논문 Table 1)
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s2">§2 지도 — LSTM 격자의 두 방향</h2>
+
+<p>
+여러 층으로 쌓인 RNN을 시간 축으로 펼치면 <strong>격자(grid)</strong>가 됩니다.
+가로축은 시각 <code>t</code>, 세로축은 층 <code>l</code>. 이 격자 위의 연결은 정확히 두 종류뿐입니다.
+</p>
+
+<div class="scrollx">
+<table class="tbl">
+<tr><th>방향</th><th>이름</th><th>무엇을 나르는가</th><th>수식에서</th><th>몇 번 지나는가</th></tr>
+<tr>
+  <td class="rowhead" style="color:var(--s1)">세로 ↑</td>
+  <td>비순환(non-recurrent) 연결</td>
+  <td>같은 시각 안에서 아래층의 표현을 위층으로</td>
+  <td><code>h_t^{l-1} → h_t^l</code></td>
+  <td>층 수만큼 (<b>L+1</b>번)</td>
+</tr>
+<tr>
+  <td class="rowhead" style="color:var(--s2)">가로 →</td>
+  <td>순환(recurrent) 연결</td>
+  <td><b>기억</b> — 과거의 사건을 미래로</td>
+  <td><code>h_{t-1}^l, c_{t-1}^l → h_t^l</code></td>
+  <td>건너온 시간만큼 (<b>Δt</b>번)</td>
+</tr>
+</table>
+</div>
+
+<p>
+이 표의 마지막 열이 논문 전체의 논거입니다. 세로 연결을 지나는 횟수는 <strong>망의 깊이로 고정</strong>되지만,
+가로 연결을 지나는 횟수는 <strong>정보가 기억되어야 하는 시간에 비례해 무한정 늘어납니다.</strong>
+드롭아웃을 가로에 걸면 노이즈가 그만큼 반복해서 곱해집니다.
+</p>
+
+<p>
+아래는 논문 Figure 2의 재현입니다. <strong>점선 = 드롭아웃이 적용되는 연결</strong>,
+<strong>실선 = 적용되지 않는 연결.</strong> 모드를 바꿔 가며 어떤 연결이 끊기는지 직접 보세요.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 1 · 격자 위에서 마스크가 어디에 떨어지는가 (논문 Figure 2 재현)</div>
+<div class="demo-sub">각 연결은 유닛 묶음입니다 — 여기서는 가느다란 선 3가닥이 유닛 3개를 뜻합니다. 드롭아웃이 걸린 연결에서는 각 가닥이 확률 p로 독립적으로 끊깁니다(빨간 점선). "마스크 다시 뽑기"를 여러 번 눌러 보세요.</div>
+<div class="controls">
+  <span style="font-size:.88rem">드롭아웃 위치:</span>
+  <button class="d1mode" data-m="none">없음</button>
+  <button class="d1mode on" data-m="vert">비순환(세로)에만 — 논문</button>
+  <button class="d1mode" data-m="all">순환(가로)에도 — 잘못된 방식</button>
+</div>
+<div class="controls">
+  <label>드롭 확률 p <input type="range" id="d1p" min="0" max="90" value="50" step="5"> <span class="readout" id="d1pv">0.50</span></label>
+  <label>층 수 L <input type="range" id="d1L" min="1" max="3" value="2" step="1"> <span class="readout" id="d1Lv">2</span></label>
+  <button id="d1resample">🎲 마스크 다시 뽑기</button>
+</div>
+<div class="scrollx"><canvas id="d1canvas"></canvas></div>
+<div class="legend">
+  <span><span class="ln" style="border-top-style:dashed;border-color:var(--s1)"></span>세로(비순환) — 드롭아웃 적용</span>
+  <span><span class="ln" style="border-color:var(--s2)"></span>가로(순환) — 기억 통로</span>
+  <span><span class="ln" style="border-top-style:dashed;border-color:var(--crit)"></span>이번 마스크에서 끊긴 유닛</span>
+</div>
+<div class="stats">
+  <div class="stat">세로 유닛 끊김<b id="d1vs">–</b></div>
+  <div class="stat">가로 유닛 끊김<b id="d1hs">–</b></div>
+  <div class="stat hl" id="d1memstat">기억 통로 상태<b id="d1mem">온전함</b></div>
+</div>
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s3">§3 수식 — D는 어디에 붙는가</h2>
+
+<p>
+논문이 쓰는 표기부터. <code>h_t^l ∈ ℝⁿ</code>은 층 <code>l</code>, 시각 <code>t</code>의 은닉 상태,
+<code>c_t^l</code>은 메모리 셀, <code>T_{n,m}</code>은 아핀 변환(<code>Wx + b</code>), <code>⊙</code>는 원소별 곱입니다.
+정규화 없는 LSTM은 이렇게 생겼습니다.
+</p>
+
+<pre><code>LSTM :  h_t^{l-1}, h_{t-1}^l, c_{t-1}^l  →  h_t^l, c_t^l
+
+  ⎛ i ⎞   ⎛ sigm ⎞                ⎛ h_t^{l-1} ⎞
+  ⎜ f ⎟ = ⎜ sigm ⎟   T_{2n,4n}    ⎜           ⎟
+  ⎜ o ⎟   ⎜ sigm ⎟                ⎝ h_{t-1}^l ⎠
+  ⎝ g ⎠   ⎝ tanh ⎠
+
+  c_t^l = f ⊙ c_{t-1}^l + i ⊙ g
+  h_t^l = o ⊙ tanh(c_t^l)</code></pre>
+
+<p>이 논문이 바꾸는 것은 <strong>딱 한 군데</strong>입니다. 드롭아웃 연산자 <code>D</code>가 붙는 위치입니다.</p>
+
+<pre><code>  ⎛ i ⎞   ⎛ sigm ⎞                ⎛ <b>D(</b>h_t^{l-1}<b>)</b> ⎞   ← 아래층에서 올라온 입력: 드롭아웃 O
+  ⎜ f ⎟ = ⎜ sigm ⎟   T_{2n,4n}    ⎜              ⎟
+  ⎜ o ⎟   ⎜ sigm ⎟                ⎝   h_{t-1}^l  ⎠   ← 이전 시각의 기억: 드롭아웃 X
+  ⎝ g ⎠   ⎝ tanh ⎠
+
+  c_t^l = f ⊙ c_{t-1}^l + i ⊙ g          ← 셀 레일도 손대지 않음
+  h_t^l = o ⊙ tanh(c_t^l)</code></pre>
+
+<p>
+<code>D</code>는 논문의 정의 그대로 "인자의 무작위 부분집합을 0으로 만드는 연산자"입니다.
+<code>l = 1</code>일 때 <code>h_t^0</code>은 입력 단어 벡터이므로, 입력 임베딩에도 드롭아웃이 걸립니다.
+그리고 마지막 층의 출력 <code>h_t^L</code>이 <code>y_t</code>를 예측하러 갈 때 한 번 더 —
+그래서 세로 방향의 드롭아웃 지점은 총 <strong>L+1</strong>개입니다.
+</p>
+
+<div class="note">
+<b>스케일링에 대해.</b> 논문은 <code>D</code>를 "무작위 부분집합을 0으로" 이상으로 정의하지 않습니다.
+실무 구현은 대개 inverted dropout — 학습 때 살아남은 값에 <code>1/(1−p)</code>를 곱해 기댓값을 맞추고,
+추론 때는 아무것도 하지 않습니다. 이 페이지의 데모는 마스크 자체를 보여주려고 스케일링을 생략합니다.
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s4">§4 핵심 — 노이즈는 몇 번 곱해지는가</h2>
+
+<p>
+여기가 논문의 심장입니다. 논문 Figure 3은 정보 하나가 격자를 지나는 경로를 굵은 선으로 그리고,
+그 경로가 드롭아웃 연산자를 <strong>정확히 L+1번</strong> 만난다고 말합니다.
+그리고 결정적인 한마디를 덧붙입니다 —
+</p>
+<blockquote style="border-left:3px solid var(--s1);margin:16px 0;padding:4px 0 4px 16px;color:var(--ink2);font-size:.95rem">
+"…and this number is independent of the number of timesteps traversed by the information."<br>
+<span class="meta">— 이 횟수는 정보가 건너온 타임스텝 수와 무관하다.</span>
+</blockquote>
+
+<p>
+아래 데모에서 <strong>파란 사각형</strong>은 두 방식 모두에서 노이즈를 맞는 지점(세로 이동),
+<strong>빨간 원</strong>은 순환 연결에도 드롭아웃을 걸었을 때만 추가로 생기는 지점(가로 이동)입니다.
+시간 거리 Δt를 늘려 보세요 — 파란 사각형 개수는 변하지 않고, 빨간 원만 늘어납니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 2 · 정보 경로와 손상 횟수 (논문 Figure 3 재현)</div>
+<div class="demo-sub">시각 t₀의 사건 정보가 Δt 스텝 뒤의 예측에 쓰이기까지 지나는 경로입니다. 층 수 L, 시간 거리 Δt, 드롭 확률 p를 바꿔 가며 두 방식의 "경로 생존 확률"을 비교하세요.</div>
+<div class="controls">
+  <label>층 수 L <input type="range" id="d2L" min="1" max="4" value="2" step="1"> <span class="readout" id="d2Lv">2</span></label>
+  <label>시간 거리 Δt <input type="range" id="d2dt" min="0" max="10" value="4" step="1"> <span class="readout" id="d2dtv">4</span></label>
+  <label>드롭 확률 p <input type="range" id="d2p" min="0" max="90" value="50" step="5"> <span class="readout" id="d2pv">0.50</span></label>
+</div>
+<div class="scrollx"><canvas id="d2canvas"></canvas></div>
+<div class="legend">
+  <span><span class="sw" style="background:var(--s1)"></span>세로 이동에서의 드롭아웃 — 두 방식 공통</span>
+  <span><span class="sw" style="background:var(--crit);border-radius:999px"></span>가로 이동에서의 드롭아웃 — 잘못된 방식에만</span>
+</div>
+<div class="stats">
+  <div class="stat hl">논문 방식 손상 횟수<b id="d2kA">3</b></div>
+  <div class="stat hl">논문 방식 생존 확률<b id="d2sA">12.5%</b></div>
+  <div class="stat bad">순환에도 걸었을 때<b id="d2kB">7</b></div>
+  <div class="stat bad">그때의 생존 확률<b id="d2sB">0.8%</b></div>
+</div>
+<div style="margin-top:18px">
+  <div class="demo-sub" style="margin-bottom:8px">경로 생존 확률 <code>(1−p)^k</code> — 세로축은 로그 눈금. 논문은 <b>35 스텝</b>을 펼쳐 학습했습니다(PTB medium/large).</div>
+  <div class="scrollx"><canvas id="d2chart"></canvas></div>
+</div>
+</div>
+
+<p>
+p = 0.5, L = 2, 그리고 논문이 실제로 쓴 35스텝 언롤을 넣어 보면 숫자가 이렇게 갈립니다.
+</p>
+
+<div class="scrollx">
+<table class="tbl">
+<tr><th>방식</th><th>손상 횟수 k</th><th>생존 확률 (1−p)^k</th><th>Δt가 늘어나면</th></tr>
+<tr><td class="rowhead">비순환에만 (논문)</td><td class="hl">L+1 = 3</td><td class="hl">12.5%</td><td>변하지 않음</td></tr>
+<tr><td class="rowhead">순환에도 (표준 드롭아웃)</td><td>L+1+Δt = 38</td><td style="color:var(--crit);font-weight:700">0.0000000004%</td><td>지수적으로 붕괴</td></tr>
+</table>
+</div>
+
+<p>
+논문의 마무리 문장이 이 표 그대로입니다:
+"Standard dropout perturbs the recurrent connections, which makes it difficult for the LSTM to learn to store information for long periods of time.
+By not using dropout on the recurrent connections, the LSTM can benefit from dropout regularization without sacrificing its valuable memorization ability."
+</p>
+
+<div class="note">
+<b>드롭아웃이 하는 일은 그대로 남습니다.</b> 논문의 표현대로 드롭아웃 연산자는 유닛이 나르는 정보를 훼손해
+<em>중간 계산을 더 강건하게</em> 만듭니다. 다만 유닛의 정보를 <em>전부</em> 지우고 싶지는 않고,
+특히 여러 타임스텝 전의 사건은 반드시 기억하게 두어야 합니다 — 그 둘을 동시에 만족시키는 유일한 지점이 세로 연결입니다.
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s5">§5 기억은 얼마나 살아남는가 — 200개 유닛 시뮬레이션</h2>
+
+<p>
+확률을 눈으로 보면 더 분명합니다. 유닛 200개가 각자 "시각 t₀에 무슨 일이 있었는지"를
+순환 연결로 나르고 있다고 합시다. 매 스텝, 순환 연결에 드롭아웃이 걸려 있으면 그 유닛의 경로는
+확률 p로 끊깁니다. 한 번 끊기면 그 정보는 사라집니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 3 · 35 스텝을 건너는 기억, 두 방식 비교</div>
+<div class="demo-sub">점 하나가 유닛 하나입니다. 주황색 = 정보를 아직 나르고 있음, 회색 = 도중에 끊김. 슬라이더를 끌거나 재생을 눌러 보세요.</div>
+<div class="controls">
+  <label>경과 스텝 <input type="range" id="d3t" min="0" max="35" value="0" step="1"> <span class="readout" id="d3tv">0</span></label>
+  <label>드롭 확률 p <input type="range" id="d3p" min="5" max="90" value="50" step="5"> <span class="readout" id="d3pv">0.50</span></label>
+  <button id="d3play">▶ 재생</button>
+  <button id="d3re">🎲 다시 뽑기</button>
+</div>
+<div class="panelrow">
+  <div class="panel" style="flex:1;min-width:250px">
+    <canvas id="d3a"></canvas>
+    <div class="cap"><b style="color:var(--accent-ink)">논문 방식</b> — 순환 연결에 드롭아웃 없음<br>생존 <span class="readout" id="d3av">200 / 200</span></div>
+  </div>
+  <div class="panel" style="flex:1;min-width:250px">
+    <canvas id="d3b"></canvas>
+    <div class="cap"><b style="color:var(--crit)">순환에도 적용</b> — 매 스텝 확률 p로 끊김<br>생존 <span class="readout" id="d3bv">200 / 200</span></div>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat">이론 생존 확률 (1−p)^t<b id="d3theory">100%</b></div>
+  <div class="stat" id="d3half">반감기 (절반이 끊기는 스텝)<b id="d3halfv">1</b></div>
+</div>
+</div>
+
+<p>
+p = 0.5에서는 <strong>10스텝이면 200개 중 0개</strong>가 남는 것이 보통입니다.
+논문이 PTB에서 실제로 쓴 값이 medium 모델 50%, large 모델 65%였다는 점을 생각해 보세요 —
+이 확률을 순환 연결에 걸었다면 LSTM은 사실상 한두 스텝 앞만 보는 모델이 됩니다.
+</p>
+
+<div class="warn">
+<b>정확히 짚어 두기.</b> LSTM에서 장기 기억을 나르는 주 통로는 셀 상태 <code>c</code>의 덧셈 레일이고,
+이 레일에는 원래 행렬 곱이 없습니다. 순환 드롭아웃이 직접 지우는 것은 <code>h_{t-1}</code> 경로입니다.
+다만 <code>h_{t-1}</code>은 다음 스텝의 게이트 <code>i, f, o, g</code>를 전부 계산하는 입력이므로,
+기억을 <em>읽고 쓰는 제어 신호</em>가 매 스텝 손상됩니다. 논문 Figure 3의 정보 경로도 <code>h</code>를 타고 흐릅니다.
+(순수 RNN에서는 <code>h_{t-1}</code> 자체가 기억이므로 더 직접적입니다.)
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s6">§6 게이트 위에서 확인하기 — LSTM 한 스텝 직접 계산</h2>
+
+<p>
+추상적인 확률 말고 실제 숫자로 봅시다. 아래는 <code>n = 4</code>짜리 미니 LSTM 한 스텝입니다.
+가중치 <code>T_{2n,4n}</code>는 고정, 입력만 마스크가 바뀝니다.
+드롭아웃 위치를 바꿔 가며 게이트와 <code>c_t</code>가 어떻게 달라지는지 확인하세요.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 4 · D의 위치를 바꿔 가며 게이트 값 관찰하기</div>
+<div class="demo-sub">모든 계산은 페이지 안에서 실제로 수행됩니다 — sigm/tanh, 원소별 곱까지. 회색 기준선은 드롭아웃이 전혀 없을 때의 값입니다.</div>
+<div class="controls">
+  <span style="font-size:.88rem">드롭아웃 위치:</span>
+  <button class="d4mode" data-m="none">없음</button>
+  <button class="d4mode on" data-m="vert">D(h_t^{l-1})만 — 논문</button>
+  <button class="d4mode" data-m="all">양쪽 모두 — 잘못된 방식</button>
+</div>
+<div class="controls">
+  <label>드롭 확률 p <input type="range" id="d4p" min="0" max="90" value="50" step="5"> <span class="readout" id="d4pv">0.50</span></label>
+  <button id="d4re">🎲 마스크 다시 뽑기</button>
+</div>
+
+<div class="vecrow"><span class="vlabel">h_t^{l-1} (아래층 입력)</span><span class="cellrow" id="d4below"></span></div>
+<div class="vecrow"><span class="vlabel">h_{t-1}^l (이전 시각 기억)</span><span class="cellrow" id="d4prev"></span></div>
+<div class="vecrow"><span class="vlabel">c_{t-1}^l (셀 상태)</span><span class="cellrow" id="d4cprev"></span></div>
+<hr style="border:0;border-top:1px dashed var(--line);margin:14px 0">
+<div class="vecrow"><span class="vlabel">i — 입력 게이트</span><span class="cellrow" id="d4i"></span></div>
+<div class="vecrow"><span class="vlabel">f — 망각 게이트</span><span class="cellrow" id="d4f"></span></div>
+<div class="vecrow"><span class="vlabel">o — 출력 게이트</span><span class="cellrow" id="d4o"></span></div>
+<div class="vecrow"><span class="vlabel">g — 입력 변조</span><span class="cellrow" id="d4g"></span></div>
+<hr style="border:0;border-top:1px dashed var(--line);margin:14px 0">
+<div class="vecrow"><span class="vlabel">c_t^l = f⊙c_{t-1} + i⊙g</span><span class="cellrow" id="d4c"></span></div>
+<div class="vecrow"><span class="vlabel">h_t^l = o⊙tanh(c_t)</span><span class="cellrow" id="d4h"></span></div>
+<div class="stats">
+  <div class="stat">기준선 대비 게이트 변화 ‖Δ(i,f,o,g)‖<b id="d4gd">0.00</b></div>
+  <div class="stat">기준선 대비 기억 변화 ‖Δc_t‖<b id="d4cd">0.00</b></div>
+</div>
+<div class="legend">
+  <span><span class="sw" style="background:color-mix(in srgb, var(--crit) 40%, transparent)"></span>마스크로 0이 된 유닛</span>
+  <span><span class="sw" style="background:var(--surface2);border:1px solid var(--s2)"></span>순환 경로 (논문에서는 손대지 않음)</span>
+</div>
+</div>
+
+<p>
+"양쪽 모두"로 바꾸면 <code>‖Δc_t‖</code>가 눈에 띄게 커집니다. 이 스텝 하나만 보면 별것 아닌 것 같지만,
+§4에서 봤듯 이 손상이 <strong>매 스텝 반복</strong>된다는 게 문제입니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s7">§7 논문의 실험 결과</h2>
+
+<h3>7.1 언어 모델링 — Penn Tree Bank</h3>
+<p>
+929k 학습 단어, 73k 검증, 82k 테스트, 어휘 10k. 두 층 LSTM을 35 스텝 펼쳐 학습했습니다.
+</p>
+
+<div class="scrollx">
+<table class="tbl">
+<tr><th>설정</th><th>층당 유닛</th><th>드롭아웃</th><th>학습 조건</th></tr>
+<tr><td class="rowhead">정규화 없음</td><td>200</td><td>—</td><td>13 에폭, 20 스텝 언롤</td></tr>
+<tr><td class="rowhead">medium 정규화</td><td>650</td><td class="hl">50%</td><td>39 에폭, lr 1 → 6에폭 후 1.2배씩 감쇠, 그래디언트 클립 5</td></tr>
+<tr><td class="rowhead">large 정규화</td><td>1500</td><td class="hl">65%</td><td>55 에폭, lr 1 → 14에폭 후 1.15배씩 감쇠, 그래디언트 클립 10</td></tr>
+</table>
+</div>
+
+<div class="demo">
+<div class="demo-title">데모 5 · PTB 단어 단위 퍼플렉시티 (논문 Table 1 · 낮을수록 좋음)</div>
+<div class="demo-sub">단일 모델과 앙상블 결과를 전환해 보세요.</div>
+<div class="controls">
+  <button class="d5tab on" data-k="single">단일 모델</button>
+  <button class="d5tab" data-k="ens">모델 평균(앙상블)</button>
+</div>
+<div class="bars" id="d5bars"></div>
+<div class="meta" id="d5note"></div>
+</div>
+
+<p>
+정규화 없는 LSTM은 층당 200 유닛이 한계였습니다. 그보다 크게 만들면 과적합했기 때문입니다.
+드롭아웃이 그 천장을 걷어내자 1,500 유닛 모델이 가능해졌고, 테스트 퍼플렉시티가
+<strong>114.5 → 78.4</strong>로 떨어졌습니다. 앙상블까지 가면 38개 large 모델 평균으로 68.7입니다.
+</p>
+
+<h3>7.2 음성 인식 — Icelandic Speech Dataset</h3>
+<p>93k 발화의 비교적 작은 내부 데이터셋이라 과적합이 큰 걱정거리였습니다. 프레임 단위 정확도:</p>
+<div class="scrollx">
+<table class="tbl">
+<tr><th>모델</th><th>학습셋</th><th>검증셋</th></tr>
+<tr><td class="rowhead">정규화 없는 LSTM</td><td>71.6</td><td>68.9</td></tr>
+<tr><td class="rowhead">정규화된 LSTM</td><td>69.4</td><td class="hl">70.5</td></tr>
+</table>
+</div>
+<p>
+학습 정확도는 <strong>내려가고</strong> 검증 정확도는 올라갑니다 — 드롭아웃이 제대로 작동할 때의 전형적인 서명입니다.
+학습 때 주입한 노이즈가 학습셋 성능을 깎는 대신 일반화를 사옵니다.
+</p>
+
+<h3>7.3 기계 번역 — WMT'14 영어→프랑스어</h3>
+<p>4층 LSTM, 은닉·임베딩 1000 유닛, 영어 어휘 160k / 프랑스어 80k, 빔 크기 12. 최적 드롭아웃 확률은 <strong>0.2</strong>였습니다.</p>
+<div class="scrollx">
+<table class="tbl">
+<tr><th>모델</th><th>테스트 퍼플렉시티</th><th>테스트 BLEU</th></tr>
+<tr><td class="rowhead">정규화 없는 LSTM</td><td>5.8</td><td>25.9</td></tr>
+<tr><td class="rowhead">정규화된 LSTM</td><td class="hl">5.0</td><td class="hl">29.03</td></tr>
+<tr><td class="rowhead">LIUM (구문 기반 SMT)</td><td>—</td><td>33.30</td></tr>
+</table>
+</div>
+<p class="meta">
+BLEU +3.1. 당시 최고 SMT 시스템은 여전히 앞서 있었지만, 드롭아웃 하나로 좁힌 격차가 이 정도였습니다.
+</p>
+
+<h3>7.4 이미지 캡션 생성</h3>
+<p>
+Vinyals et al. (2014)의 캡션 모델(단일 층 LSTM)에도 같은 기법을 적용했습니다.
+드롭아웃은 도움이 되지만, <strong>앙상블을 쓰면 그 이득이 사라졌습니다.</strong>
+논문의 해석은 이렇습니다 — 이 설정에서 드롭아웃의 주된 효과는
+"앙상블만큼 좋은 <em>단일</em> 모델을 만드는 것"이며, 기법의 단순함을 생각하면 충분히 합리적인 개선입니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s8">§8 그 후 — 순환 연결에 드롭아웃을 "제대로" 거는 법</h2>
+
+<p>
+이 논문의 결론은 "순환 연결에는 드롭아웃을 걸 수 없다"가 아니라
+<strong>"매 스텝 새로 뽑은 마스크를 순환 연결에 걸면 안 된다"</strong>에 가깝습니다.
+후속 연구들이 이 틈을 파고들었습니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 6 · 마스크를 뽑는 세 가지 방식</div>
+<div class="demo-sub">가로축 = 타임스텝(12), 세로축 = 유닛(8). 색칠된 칸 = 그 스텝에서 그 유닛이 0이 됨. 세로 연결과 가로 연결의 마스크를 나란히 봅니다.</div>
+<div class="controls">
+  <button class="d6tab on" data-k="zaremba">Zaremba 2014 (이 논문)</button>
+  <button class="d6tab" data-k="gal">Gal &amp; Ghahramani 2016</button>
+  <button class="d6tab" data-k="zoneout">Zoneout 2016</button>
+</div>
+<div class="controls"><button id="d6re">🎲 다시 뽑기</button></div>
+<div class="panelrow">
+  <div class="panel"><canvas id="d6v"></canvas><div class="cap">세로(비순환) 연결의 마스크</div></div>
+  <div class="panel"><canvas id="d6h"></canvas><div class="cap">가로(순환) 연결의 마스크</div></div>
+</div>
+<div class="note" id="d6note" style="margin-top:16px"></div>
+</div>
+
+<h3>실무에서는 이미 이 논문이 기본값입니다</h3>
+<p>
+PyTorch <code>nn.LSTM</code>의 <code>dropout</code> 인자가 정확히 이 논문의 기법입니다 —
+마지막 층을 제외한 <strong>각 층의 출력에만</strong> 적용되고, 순환 연결에는 손대지 않습니다.
+그래서 <code>num_layers=1</code>이면 이 인자는 아무 효과가 없고 경고만 뜹니다.
+</p>
+
+<pre><code># Zaremba et al. (2015) 방식 — 층 사이에만 드롭아웃
+lstm = nn.LSTM(input_size=650, hidden_size=650,
+               num_layers=2, dropout=0.5)   # ← 층 1의 출력에만 적용
+
+# 입력 임베딩과 최종 출력의 드롭아웃은 직접 넣어야 합니다 (L+1개 지점 중 2개)
+emb  = drop(embedding(x))        # D(h_t^0)
+out, _ = lstm(emb, state)
+logits = decoder(drop(out))      # D(h_t^L)</code></pre>
+
+<div class="warn">
+<b>흔한 오해.</b> "RNN에는 드롭아웃을 쓰면 안 된다"는 말은 이 논문 이전의 통념이고,
+이 논문이 뒤집은 명제입니다. 반대로 "PyTorch에 <code>dropout=0.5</code>만 넣으면 끝"도 절반만 맞습니다 —
+입력 임베딩과 출력 직전의 드롭아웃은 직접 넣어야 하고, 그 둘을 빼면 L+1개 지점 중 2개를 놓칩니다.
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s9">§9 정리 — 한 문장으로</h2>
+
+<p>
+질문으로 돌아갑시다. <em>"드롭아웃을 층 사이의 비순환 연결에만 배타적으로 적용하고,
+시간에 걸쳐 메모리를 보존하는 수평 방향의 순환 연결에는 절대 적용하지 않는다."</em>
+</p>
+
+<div class="note">
+<b>세로 연결의 노이즈는 깊이에 비례하고(L+1번, 고정), 가로 연결의 노이즈는 기억해야 할 시간에 비례합니다(Δt번, 무한정).</b><br>
+정규화는 전자로 충분하고, 후자는 LSTM의 존재 이유를 지웁니다.
+그래서 드롭아웃을 세로에만 걸면 <b>정규화 효과는 온전히 얻으면서 기억 능력은 그대로 남습니다.</b>
+</div>
+
+<p>
+이 논문이 특히 배울 만한 이유는 결과의 크기가 아니라 <strong>진단의 방식</strong>에 있습니다.
+"드롭아웃이 RNN에서 안 된다"는 관찰 앞에서 저자들은 기법을 버리는 대신
+<em>노이즈가 몇 번 곱해지는지</em>를 셌습니다. 세어 보니 문제는 드롭아웃이 아니라 <strong>적용 위치</strong>였습니다.
+수정은 수식 한 곳, 코드로는 몇 줄이었고, 결과는 세 개 도메인 전부에서의 개선이었습니다.
+</p>
+
+<p class="meta">
+같이 읽으면 좋은 자료 —
+<a href="https://dev-jonghoonpark.github.io/how-lstm-works/" target="_blank" rel="noopener">How LSTM Works</a>(셀 상태 레일과 게이트 4종),
+<a href="https://dev-jonghoonpark.github.io/how-rnn-works/" target="_blank" rel="noopener">How RNN Works</a>(RNN 부흥기 개관),
+<a href="https://dev-jonghoonpark.github.io/how-seq2seq-works/" target="_blank" rel="noopener">How seq2seq Works</a>(§7.3의 번역 모델 구조).
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s10">§10 이해도 퀴즈</h2>
+
+<div class="quiz" data-answer="2">
+<div class="q">Q1. "수평 방향의 순환 연결"이 가리키는 것은?</div>
+<div class="opts">
+<button>같은 시각 t에서 아래층 h_t^{l-1}이 위층 h_t^l로 올라가는 연결</button>
+<button>입력 단어 벡터가 첫 층으로 들어가는 연결</button>
+<button>같은 층 l에서 이전 시각 h_{t-1}^l, c_{t-1}^l이 현재 시각으로 넘어오는 연결</button>
+<button>마지막 층 h_t^L이 출력 y_t를 예측하러 가는 연결</button>
+</div>
+<div class="expl">격자를 시간 축(가로)과 층 축(세로)으로 그렸을 때, <b>가로 = 같은 층 안에서 시간을 건너는 연결</b>입니다. 나머지 세 선택지는 모두 같은 시각 안에서 일어나는 세로(비순환) 연결이고, 논문은 그 세 곳에만 드롭아웃을 겁니다.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+<div class="q">Q2. L층 LSTM에서 정보 하나가 Δt 스텝을 건너 예측에 쓰일 때, 논문 방식으로 드롭아웃을 걸면 그 정보는 몇 번 손상되는가?</div>
+<div class="opts">
+<button>Δt번 — 건너온 타임스텝마다 한 번</button>
+<button>L+1번 — Δt와 무관하게 층 수로 고정</button>
+<button>L×Δt번 — 격자의 모든 지점에서</button>
+<button>1번 — 입력 임베딩에서만</button>
+</div>
+<div class="expl">경로가 세로로 올라가는 횟수는 입력→1층, 층 사이 L−1번, L층→출력 = 총 L+1번입니다. 가로 이동에는 드롭아웃이 없으므로 Δt가 아무리 커져도 이 횟수는 변하지 않습니다. 논문 Figure 3의 요지가 정확히 이것입니다.</div>
+</div>
+
+<div class="quiz" data-answer="3">
+<div class="q">Q3. 표준 드롭아웃을 순환 연결에 그대로 적용하면 생기는 일은? (p=0.5, 35스텝 언롤 기준)</div>
+<div class="opts">
+<button>파라미터 수가 지수적으로 늘어난다</button>
+<button>기울기가 폭발해 학습이 발산한다</button>
+<button>추론 속도가 35배 느려진다</button>
+<button>경로 생존 확률이 (1−p)^(L+1+Δt)로 지수 감쇠해 장기 기억이 사실상 불가능해진다</button>
+</div>
+<div class="expl">0.5³⁸ ≈ 3.6×10⁻¹². 데모 3에서 봤듯 p=0.5면 10스텝 만에 200개 유닛이 전멸합니다. 논문 표현으로는 "makes it difficult for the LSTM to learn to store information for long periods of time"입니다.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+<div class="q">Q4. 수식 <code>T_{2n,4n}(D(h_t^{l-1}), h_{t-1}^l)</code>에서 D가 <b>붙지 않은</b> 항의 역할은?</div>
+<div class="opts">
+<button>이전 시각의 은닉 상태 — 기억을 시간 축으로 나르는 통로라서 손대지 않는다</button>
+<button>편향 벡터 — 원래 드롭아웃 대상이 아니다</button>
+<button>아래층의 출력 — 이미 아래층에서 드롭아웃을 거쳤다</button>
+<button>출력 게이트 — 게이트에는 드롭아웃을 걸 수 없다</button>
+</div>
+<div class="expl"><code>h_{t-1}^l</code>은 같은 층의 직전 시각 은닉 상태, 즉 순환 연결입니다. 셀 상태 <code>c_{t-1}^l</code>이 지나는 <code>c_t = f⊙c_{t-1} + i⊙g</code> 레일도 마찬가지로 건드리지 않습니다.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+<div class="q">Q5. 음성 인식 실험(Table 2)에서 정규화된 LSTM의 <b>학습셋</b> 정확도가 71.6 → 69.4로 떨어진 것은?</div>
+<div class="opts">
+<button>구현 버그의 신호 — 정규화는 학습 정확도도 올려야 한다</button>
+<button>정상적인 현상 — 학습 중 주입한 노이즈의 대가이고, 대신 검증 정확도가 68.9 → 70.5로 올랐다</button>
+<button>모델이 너무 작아서 생긴 과소적합</button>
+<button>학습률이 너무 높아 수렴하지 못한 것</button>
+</div>
+<div class="expl">드롭아웃은 학습 성능을 노이즈로 깎아 일반화를 삽니다. 학습 정확도 ↓ + 검증 정확도 ↑ 는 정규화가 의도대로 작동하고 있다는 전형적 서명입니다.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+<div class="q">Q6. PyTorch에서 <code>nn.LSTM(..., num_layers=2, dropout=0.5)</code>만 쓰면 논문의 기법이 완전히 재현되는가?</div>
+<div class="opts">
+<button>완전히 재현된다 — 이 인자가 순환 연결까지 처리한다</button>
+<button>재현되지 않는다 — 이 인자는 순환 연결에 드롭아웃을 걸어 버린다</button>
+<button>절반만 — 층 사이는 처리되지만 입력 임베딩과 출력 직전의 드롭아웃은 직접 넣어야 한다</button>
+<button>재현되지 않는다 — PyTorch는 마지막 층에도 드롭아웃을 적용한다</button>
+</div>
+<div class="expl">이 인자는 마지막 층을 제외한 각 층의 출력, 즉 층 사이의 비순환 연결에만 적용됩니다(그래서 <code>num_layers=1</code>이면 경고와 함께 무시됩니다). 논문의 L+1개 드롭아웃 지점 중 <code>D(h_t^0)</code>(임베딩)과 <code>D(h_t^L)</code>(출력 직전)은 직접 추가해야 합니다.</div>
+</div>
+
+<footer>
+<p>
+참고 자료 —
+Wojciech Zaremba, Ilya Sutskever &amp; Oriol Vinyals,
+<a href="https://arxiv.org/abs/1409.2329" target="_blank" rel="noopener">Recurrent Neural Network Regularization</a>, arXiv:1409.2329 (ICLR 2015 투고) ·
+저자 구현 <a href="https://github.com/wojzaremba/lstm" target="_blank" rel="noopener">wojzaremba/lstm</a> ·
+후속 연구: Gal &amp; Ghahramani, <a href="https://arxiv.org/abs/1512.05287" target="_blank" rel="noopener">A Theoretically Grounded Application of Dropout in RNNs</a> (2016);
+Krueger et al., <a href="https://arxiv.org/abs/1606.01305" target="_blank" rel="noopener">Zoneout</a> (2016).
+</p>
+<p>
+이 페이지는 <a href="https://github.com/dev-jonghoonpark/how-ai-works" target="_blank" rel="noopener">how-ai-works</a> 시리즈의 일부입니다.
+모든 계산(마스크 샘플링, 경로 추적, LSTM 한 스텝, 몬테카를로 생존 시뮬레이션)은
+페이지 안의 순수 JavaScript로 수행됩니다 — 외부 라이브러리·서버 없음.
+</p>
+</footer>
+
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ---------- theme ---------- */
+$("themeToggle").addEventListener("click", () => {
+  const r = document.documentElement;
+  const cur = r.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  r.dataset.theme = cur === "dark" ? "light" : "dark";
+  drawAll();
+});
+
+/* ---------- helpers ---------- */
+function ctx2d(c, w, h) {
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  c.style.width = w + "px"; c.style.height = h + "px";
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  return g;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const sigm = x => 1 / (1 + Math.exp(-x));
+const fmt = x => (x >= 0 ? " " : "") + x.toFixed(2);
+function pct(x) {
+  if (x >= 0.01) return (x * 100).toFixed(1) + "%";
+  if (x >= 1e-6) return (x * 100).toPrecision(2) + "%";
+  return (x * 100).toExponential(1) + "%";
+}
+function dashLine(g, x1, y1, x2, y2, dashed) {
+  g.setLineDash(dashed ? [4, 4] : []);
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  g.setLineDash([]);
+}
+function arrowHead(g, x, y, dir) { // dir: 'up' | 'right'
+  g.beginPath();
+  if (dir === "up") { g.moveTo(x, y); g.lineTo(x - 4, y + 7); g.lineTo(x + 4, y + 7); }
+  else { g.moveTo(x, y); g.lineTo(x - 7, y - 4); g.lineTo(x - 7, y + 4); }
+  g.closePath(); g.fill();
+}
+
+/* ================================================================
+   Demo 1 — Figure 2: where the mask lands on the grid
+================================================================ */
+const D1 = { mode: "vert", p: 0.5, L: 2, T: 5, WIRES: 3, seed: 7 };
+
+function d1Draw() {
+  const { L, T, WIRES } = D1;
+  const colW = 96, padL = 58, rowGap = 82, nodeH = 34, nodeW = 15;
+  const W = padL + (T - 1) * colW + 58;
+  const H = 42 + L * rowGap + 44;
+  const g = ctx2d($("d1canvas"), W, H);
+  const colX = i => padL + i * colW;
+  const nodeY = l => 42 + (L - l) * rowGap + nodeH / 2;   // l = 1..L, center
+  const inY = H - 34, outY = 22;
+
+  const rnd = mulberry32(D1.seed);
+  let vTot = 0, vDrop = 0, hTot = 0, hDrop = 0;
+  const vertOn = D1.mode !== "none";
+  const horizOn = D1.mode === "all";
+
+  g.font = "12px ui-monospace, Menlo, monospace";
+  g.textAlign = "center"; g.textBaseline = "middle";
+
+  // ---- helper to draw a bundle of wires
+  function bundle(x1, y1, x2, y2, eligible, horizontal) {
+    for (let w = 0; w < WIRES; w++) {
+      const off = (w - (WIRES - 1) / 2) * 5;
+      const ox = horizontal ? 0 : off, oy = horizontal ? off : 0;
+      let dropped = false;
+      if (eligible) { dropped = rnd() < D1.p; if (horizontal) { hTot++; if (dropped) hDrop++; } else { vTot++; if (dropped) vDrop++; } }
+      else if (horizontal) hTot++; else vTot++;
+      g.lineWidth = 1.6;
+      if (dropped) { g.strokeStyle = css("--crit"); g.globalAlpha = 0.55; }
+      else { g.strokeStyle = horizontal ? css("--s2") : css("--s1"); g.globalAlpha = 0.95; }
+      dashLine(g, x1 + ox, y1 + oy, x2 + ox, y2 + oy, eligible);
+      g.globalAlpha = 1;
+    }
+    // arrow head
+    g.fillStyle = horizontal ? css("--s2") : css("--s1");
+    g.globalAlpha = 0.9;
+    arrowHead(g, x2, y2, horizontal ? "right" : "up");
+    g.globalAlpha = 1;
+  }
+
+  // ---- vertical connections
+  for (let i = 0; i < T; i++) {
+    // input -> layer 1
+    bundle(colX(i), inY - 10, colX(i), nodeY(1) + nodeH / 2 + 2, vertOn, false);
+    // layer l -> l+1
+    for (let l = 1; l < L; l++) bundle(colX(i), nodeY(l) - nodeH / 2, colX(i), nodeY(l + 1) + nodeH / 2 + 2, vertOn, false);
+    // layer L -> output
+    bundle(colX(i), nodeY(L) - nodeH / 2, colX(i), outY + 10, vertOn, false);
+  }
+  // ---- horizontal (recurrent) connections
+  for (let l = 1; l <= L; l++)
+    for (let i = 0; i < T - 1; i++)
+      bundle(colX(i) + nodeW / 2, nodeY(l), colX(i + 1) - nodeW / 2 - 2, nodeY(l), horizOn, true);
+
+  // ---- nodes
+  for (let i = 0; i < T; i++) for (let l = 1; l <= L; l++) {
+    g.fillStyle = css("--surface2"); g.strokeStyle = css("--ink2"); g.lineWidth = 1.4;
+    const x = colX(i) - nodeW / 2, y = nodeY(l) - nodeH / 2;
+    g.beginPath(); g.roundRect(x, y, nodeW, nodeH, 4); g.fill(); g.stroke();
+  }
+  // ---- labels
+  g.fillStyle = css("--muted");
+  const lbl = i => (i === 2 ? "t" : i < 2 ? "t−" + (2 - i) : "t+" + (i - 2));
+  for (let i = 0; i < T; i++) {
+    g.fillText("x_" + lbl(i), colX(i), inY + 12);
+    g.fillText("y_" + lbl(i), colX(i), outY - 12);
+  }
+  g.textAlign = "right";
+  for (let l = 1; l <= L; l++) { g.fillStyle = css("--muted"); g.fillText("층 " + l, padL - 26, nodeY(l)); }
+
+  // ---- stats
+  $("d1vs").textContent = vertOn ? vDrop + " / " + vTot : "0 / " + vTot;
+  $("d1hs").textContent = horizOn ? hDrop + " / " + hTot : "0 / " + hTot;
+  const memEl = $("d1memstat");
+  if (horizOn) {
+    $("d1mem").textContent = hDrop + "곳 끊김";
+    memEl.classList.remove("hl"); memEl.classList.add("bad");
+  } else {
+    $("d1mem").textContent = "온전함";
+    memEl.classList.add("hl"); memEl.classList.remove("bad");
+  }
+}
+document.querySelectorAll(".d1mode").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".d1mode").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); D1.mode = b.dataset.m; d1Draw();
+}));
+$("d1p").addEventListener("input", e => { D1.p = e.target.value / 100; $("d1pv").textContent = D1.p.toFixed(2); d1Draw(); });
+$("d1L").addEventListener("input", e => { D1.L = +e.target.value; $("d1Lv").textContent = D1.L; d1Draw(); });
+$("d1resample").addEventListener("click", () => { D1.seed = (D1.seed * 1103515245 + 12345) >>> 0; d1Draw(); });
+
+/* ================================================================
+   Demo 2 — Figure 3: how many times is the information corrupted
+================================================================ */
+const D2 = { L: 2, dt: 4, p: 0.5 };
+
+function d2Path() {
+  // distribute dt horizontal hops across L layers
+  const { L, dt } = D2;
+  const base = Math.floor(dt / L), rem = dt % L;
+  const seg = [];
+  for (let l = 0; l < L; l++) seg.push(base + (l < rem ? 1 : 0));
+  return seg; // seg[l] = horizontal hops taken while in layer l+1
+}
+
+function d2Draw() {
+  const { L, dt, p } = D2;
+  const T = dt + 1;
+  const colW = Math.max(44, Math.min(72, 560 / Math.max(T, 1)));
+  const padL = 52, rowGap = 66, nodeH = 26, nodeW = 12;
+  const W = padL + (T - 1) * colW + 52;
+  const H = 40 + L * rowGap + 40;
+  const g = ctx2d($("d2canvas"), W, H);
+  const colX = i => padL + i * colW;
+  const nodeY = l => 40 + (L - l) * rowGap + nodeH / 2;
+  const inY = H - 30, outY = 20;
+
+  // faint grid
+  g.lineWidth = 1; g.strokeStyle = css("--line");
+  for (let i = 0; i < T; i++) {
+    dashLine(g, colX(i), inY - 8, colX(i), outY + 8, false);
+  }
+  for (let l = 1; l <= L; l++) dashLine(g, colX(0), nodeY(l), colX(T - 1), nodeY(l), false);
+  // nodes
+  for (let i = 0; i < T; i++) for (let l = 1; l <= L; l++) {
+    g.fillStyle = css("--surface2"); g.strokeStyle = css("--line"); g.lineWidth = 1;
+    g.beginPath(); g.roundRect(colX(i) - nodeW / 2, nodeY(l) - nodeH / 2, nodeW, nodeH, 3); g.fill(); g.stroke();
+  }
+
+  // ---- the path
+  const seg = d2Path();
+  const pts = [];           // polyline points
+  const vMarks = [], hMarks = [];
+  let col = 0;
+  pts.push([colX(0), inY - 8]);
+  for (let l = 1; l <= L; l++) {
+    // rise into layer l  -> one vertical dropout
+    pts.push([colX(col), nodeY(l)]);
+    vMarks.push([colX(col), (l === 1 ? (inY - 8 + nodeY(1)) / 2 : (nodeY(l - 1) + nodeY(l)) / 2)]);
+    // travel right
+    for (let s = 0; s < seg[l - 1]; s++) {
+      hMarks.push([(colX(col) + colX(col + 1)) / 2, nodeY(l)]);
+      col++;
+      pts.push([colX(col), nodeY(l)]);
+    }
+  }
+  // exit to output -> final vertical dropout
+  pts.push([colX(col), outY + 8]);
+  vMarks.push([colX(col), (nodeY(L) + outY + 8) / 2]);
+
+  g.strokeStyle = css("--ink"); g.lineWidth = 3; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+  g.stroke();
+
+  // markers
+  g.fillStyle = css("--s1"); g.strokeStyle = css("--surface"); g.lineWidth = 1.5;
+  vMarks.forEach(([x, y]) => { g.beginPath(); g.rect(x - 5, y - 5, 10, 10); g.fill(); g.stroke(); });
+  g.fillStyle = css("--crit");
+  hMarks.forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.stroke(); });
+
+  // labels
+  g.fillStyle = css("--muted"); g.font = "11px ui-monospace, Menlo, monospace";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("x_t₀", colX(0), inY + 8);
+  g.fillText("y_(t₀+" + dt + ")", colX(T - 1), outY - 10);
+  g.textAlign = "right";
+  for (let l = 1; l <= L; l++) g.fillText("층 " + l, padL - 22, nodeY(l));
+
+  // stats
+  const kA = L + 1, kB = L + 1 + dt;
+  $("d2kA").textContent = kA + "번";
+  $("d2kB").textContent = kB + "번";
+  $("d2sA").textContent = pct(Math.pow(1 - p, kA));
+  $("d2sB").textContent = pct(Math.pow(1 - p, kB));
+  d2Chart();
+}
+
+function d2Chart() {
+  const { L, dt, p } = D2;
+  const W = Math.min(620, Math.max(360, window.innerWidth - 90)), H = 220;
+  const g = ctx2d($("d2chart"), W, H);
+  const padL = 54, padR = 14, padT = 14, padB = 30;
+  const x0 = padL, x1 = W - padR, y0 = padT, y1 = H - padB;
+  const MAXT = 35, MINY = -14;  // log10 floor
+  const X = t => x0 + (x1 - x0) * t / MAXT;
+  const Y = v => { const lg = Math.max(MINY, Math.log10(Math.max(v, 1e-30))); return y1 - (y1 - y0) * (lg - MINY) / (0 - MINY); };
+
+  // axes + gridlines
+  g.font = "10px ui-monospace, Menlo, monospace"; g.textBaseline = "middle";
+  for (let e = 0; e >= MINY; e -= 2) {
+    const y = Y(Math.pow(10, e));
+    g.strokeStyle = css("--line"); g.lineWidth = 1;
+    dashLine(g, x0, y, x1, y, false);
+    g.fillStyle = css("--muted"); g.textAlign = "right";
+    const lab = e === 0 ? "100%" : e === -2 ? "1%" : "1e" + (e + 2) + "%";
+    g.fillText(lab, x0 - 6, y);
+  }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (let t = 0; t <= MAXT; t += 5) { g.fillStyle = css("--muted"); g.fillText(String(t), X(t), y1 + 6); }
+  g.fillText("시간 거리 Δt (스텝)", (x0 + x1) / 2, y1 + 18);
+
+  // curve A: paper (flat)
+  const vA = Math.pow(1 - p, L + 1);
+  g.strokeStyle = css("--accent"); g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(X(0), Y(vA)); g.lineTo(X(MAXT), Y(vA)); g.stroke();
+  // curve B: recurrent dropout
+  g.strokeStyle = css("--crit"); g.lineWidth = 2.5;
+  g.beginPath();
+  for (let t = 0; t <= MAXT; t++) {
+    const v = Math.pow(1 - p, L + 1 + t);
+    const px = X(t), py = Y(v);
+    t === 0 ? g.moveTo(px, py) : g.lineTo(px, py);
+  }
+  g.stroke();
+  // current point
+  g.fillStyle = css("--accent"); g.beginPath(); g.arc(X(dt), Y(vA), 4.5, 0, 7); g.fill();
+  g.fillStyle = css("--crit"); g.beginPath(); g.arc(X(dt), Y(Math.pow(1 - p, L + 1 + dt)), 4.5, 0, 7); g.fill();
+  // 35-step marker
+  g.strokeStyle = css("--muted"); g.lineWidth = 1;
+  dashLine(g, X(35), y0, X(35), y1, true);
+
+  // legend (bottom-left: the red curve is high there, so nothing is covered)
+  g.font = "11px -apple-system, sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+  const lx = x0 + 10, ly = y1 - 40;
+  g.fillStyle = css("--surface"); g.globalAlpha = 0.92;
+  g.beginPath(); g.roundRect(lx - 6, ly - 12, 232, 36, 8); g.fill();
+  g.globalAlpha = 1; g.strokeStyle = css("--line"); g.lineWidth = 1; g.stroke();
+  g.fillStyle = css("--accent"); g.fillRect(lx, ly - 2, 14, 3);
+  g.fillStyle = css("--ink2"); g.fillText("비순환에만 (논문) — Δt와 무관하게 평평", lx + 20, ly - 1);
+  g.fillStyle = css("--crit"); g.fillRect(lx, ly + 14, 14, 3);
+  g.fillStyle = css("--ink2"); g.fillText("순환에도 적용 — 지수적으로 붕괴", lx + 20, ly + 15);
+}
+$("d2L").addEventListener("input", e => { D2.L = +e.target.value; $("d2Lv").textContent = D2.L; d2Draw(); });
+$("d2dt").addEventListener("input", e => { D2.dt = +e.target.value; $("d2dtv").textContent = D2.dt; d2Draw(); });
+$("d2p").addEventListener("input", e => { D2.p = e.target.value / 100; $("d2pv").textContent = D2.p.toFixed(2); d2Draw(); });
+
+/* ================================================================
+   Demo 3 — 200 units carrying memory across 35 steps
+================================================================ */
+const D3 = { N: 200, T: 35, t: 0, p: 0.5, seed: 42, timer: null, u: null };
+
+function d3Sample() {
+  const rnd = mulberry32(D3.seed);
+  D3.u = [];
+  for (let i = 0; i < D3.N; i++) {
+    const row = new Float32Array(D3.T);
+    for (let t = 0; t < D3.T; t++) row[t] = rnd();
+    D3.u.push(row);
+  }
+}
+function d3Alive() {
+  const alive = new Uint8Array(D3.N).fill(1);
+  for (let i = 0; i < D3.N; i++)
+    for (let t = 0; t < D3.t; t++) if (D3.u[i][t] < D3.p) { alive[i] = 0; break; }
+  return alive;
+}
+function d3Grid(canvas, alive, colorAlive) {
+  const cols = 20, rows = D3.N / cols, cell = 13, gap = 3;
+  const W = cols * (cell + gap), H = rows * (cell + gap);
+  const g = ctx2d(canvas, W, H);
+  for (let i = 0; i < D3.N; i++) {
+    const r = Math.floor(i / cols), c = i % cols;
+    g.fillStyle = alive[i] ? colorAlive : css("--surface2");
+    g.strokeStyle = css("--line"); g.lineWidth = 1;
+    g.beginPath(); g.arc(c * (cell + gap) + cell / 2 + 1, r * (cell + gap) + cell / 2 + 1, cell / 2, 0, 7);
+    g.fill(); if (!alive[i]) g.stroke();
+  }
+}
+function d3Draw() {
+  const aliveB = d3Alive();
+  const all = new Uint8Array(D3.N).fill(1);
+  d3Grid($("d3a"), all, css("--s2"));
+  d3Grid($("d3b"), aliveB, css("--s2"));
+  let n = 0; for (let i = 0; i < D3.N; i++) n += aliveB[i];
+  $("d3av").textContent = D3.N + " / " + D3.N;
+  $("d3bv").textContent = n + " / " + D3.N;
+  $("d3theory").textContent = pct(Math.pow(1 - D3.p, D3.t));
+  const half = Math.log(0.5) / Math.log(1 - D3.p);
+  $("d3halfv").textContent = half.toFixed(1) + " 스텝";
+}
+$("d3t").addEventListener("input", e => { D3.t = +e.target.value; $("d3tv").textContent = D3.t; d3Draw(); });
+$("d3p").addEventListener("input", e => { D3.p = e.target.value / 100; $("d3pv").textContent = D3.p.toFixed(2); d3Draw(); });
+$("d3re").addEventListener("click", () => { D3.seed = (D3.seed * 1103515245 + 12345) >>> 0; d3Sample(); d3Draw(); });
+$("d3play").addEventListener("click", () => {
+  if (D3.timer) { clearInterval(D3.timer); D3.timer = null; $("d3play").textContent = "▶ 재생"; return; }
+  D3.t = 0; $("d3t").value = 0; $("d3tv").textContent = 0; d3Draw();
+  $("d3play").textContent = "⏸ 정지";
+  D3.timer = setInterval(() => {
+    D3.t++;
+    if (D3.t > D3.T) { clearInterval(D3.timer); D3.timer = null; $("d3play").textContent = "▶ 재생"; D3.t = D3.T; }
+    $("d3t").value = D3.t; $("d3tv").textContent = D3.t; d3Draw();
+  }, 260);
+});
+
+/* ================================================================
+   Demo 4 — one LSTM step, by hand
+================================================================ */
+const D4 = { mode: "vert", p: 0.5, seed: 3, n: 4 };
+const D4W = (() => {                      // fixed weights T_{2n,4n}
+  const rnd = mulberry32(20140908), n = 4;
+  const W = [];
+  for (let r = 0; r < 4 * n; r++) { const row = new Float32Array(2 * n); for (let c = 0; c < 2 * n; c++) row[c] = (rnd() * 2 - 1) * 1.2; W.push(row); }
+  const b = new Float32Array(4 * n); for (let r = 0; r < 4 * n; r++) b[r] = (rnd() * 2 - 1) * 0.4;
+  return { W, b };
+})();
+const D4IN = { below: [0.90, -0.40, 0.60, 0.20], prev: [0.50, 0.80, -0.30, 0.70], cprev: [1.20, -0.60, 0.90, 0.40] };
+
+function d4Compute(mBelow, mPrev) {
+  const n = 4;
+  const xb = D4IN.below.map((v, i) => v * mBelow[i]);
+  const xp = D4IN.prev.map((v, i) => v * mPrev[i]);
+  const x = xb.concat(xp);
+  const pre = [];
+  for (let r = 0; r < 4 * n; r++) { let s = D4W.b[r]; for (let c = 0; c < 2 * n; c++) s += D4W.W[r][c] * x[c]; pre.push(s); }
+  const i = pre.slice(0, n).map(sigm), f = pre.slice(n, 2 * n).map(sigm),
+        o = pre.slice(2 * n, 3 * n).map(sigm), g = pre.slice(3 * n, 4 * n).map(Math.tanh);
+  const c = f.map((fv, k) => fv * D4IN.cprev[k] + i[k] * g[k]);
+  const h = o.map((ov, k) => ov * Math.tanh(c[k]));
+  return { xb, xp, i, f, o, g, c, h };
+}
+function d4Cells(el, arr, mask, kind) {
+  el.innerHTML = "";
+  arr.forEach((v, k) => {
+    const d = document.createElement("span");
+    d.className = "cell" + (mask && mask[k] === 0 ? " zero" : kind ? " " + kind : "");
+    d.textContent = mask && mask[k] === 0 ? "0.00" : fmt(v);
+    el.appendChild(d);
+  });
+}
+function d4Draw() {
+  const n = 4, ones = [1, 1, 1, 1];
+  const rnd = mulberry32(D4.seed);
+  const mB = ones.map(() => (D4.mode === "none" ? 1 : (rnd() < D4.p ? 0 : 1)));
+  const mP = ones.map(() => (D4.mode === "all" ? (rnd() < D4.p ? 0 : 1) : 1));
+  const r = d4Compute(mB, mP);
+  const base = d4Compute(ones, ones);
+
+  d4Cells($("d4below"), D4IN.below, mB, "keep");
+  d4Cells($("d4prev"), D4IN.prev, mP, "mem");
+  d4Cells($("d4cprev"), D4IN.cprev, null, "mem");
+  d4Cells($("d4i"), r.i, null, "");
+  d4Cells($("d4f"), r.f, null, "");
+  d4Cells($("d4o"), r.o, null, "");
+  d4Cells($("d4g"), r.g, null, "");
+  d4Cells($("d4c"), r.c, null, "mem");
+  d4Cells($("d4h"), r.h, null, "");
+
+  const norm = (a, b) => Math.sqrt(a.reduce((s, v, k) => s + (v - b[k]) ** 2, 0));
+  const gd = Math.sqrt(norm(r.i, base.i) ** 2 + norm(r.f, base.f) ** 2 + norm(r.o, base.o) ** 2 + norm(r.g, base.g) ** 2);
+  $("d4gd").textContent = gd.toFixed(3);
+  $("d4cd").textContent = norm(r.c, base.c).toFixed(3);
+}
+document.querySelectorAll(".d4mode").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".d4mode").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); D4.mode = b.dataset.m; d4Draw();
+}));
+$("d4p").addEventListener("input", e => { D4.p = e.target.value / 100; $("d4pv").textContent = D4.p.toFixed(2); d4Draw(); });
+$("d4re").addEventListener("click", () => { D4.seed = (D4.seed * 1103515245 + 12345) >>> 0; d4Draw(); });
+
+/* ================================================================
+   Demo 5 — PTB perplexity (paper Table 1)
+================================================================ */
+const D5 = {
+  single: {
+    note: "Pascanu et al. (2013) 107.5 · Cheng et al. 100.0 — 논문 Table 1의 비교 대상. 정규화된 large LSTM이 78.4로 가장 낮습니다.",
+    rows: [
+      ["Pascanu et al. (2013)", 107.5, false],
+      ["정규화 없는 LSTM (200 유닛)", 114.5, false],
+      ["medium 정규화 LSTM (650)", 82.7, true],
+      ["large 정규화 LSTM (1500)", 78.4, true]
+    ]
+  },
+  ens: {
+    note: "앙상블에서도 정규화된 모델이 압도합니다 — 정규화 없는 LSTM은 10개를 평균해도 80.0인 반면, large 정규화 LSTM은 2개만 평균해도 73.6입니다.",
+    rows: [
+      ["2 non-regularized LSTMs", 96.1, false],
+      ["10 non-regularized LSTMs", 80.0, false],
+      ["2 large 정규화 LSTMs", 73.6, true],
+      ["10 large 정규화 LSTMs", 69.5, true],
+      ["38 large 정규화 LSTMs", 68.7, true]
+    ]
+  }
+};
+function d5Draw(k) {
+  const d = D5[k], max = 120;
+  $("d5bars").innerHTML = d.rows.map(([name, v, good]) =>
+    `<div class="bar-row"><span>${name}</span><span class="bar-track"><span class="bar-fill ${good ? "acc" : "bad"}" style="width:${(100 * v / max).toFixed(1)}%"></span></span><span class="bar-val">${v}</span></div>`
+  ).join("");
+  $("d5note").textContent = d.note + " (테스트셋 퍼플렉시티)";
+}
+document.querySelectorAll(".d5tab").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".d5tab").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); d5Draw(b.dataset.k);
+}));
+
+/* ================================================================
+   Demo 6 — three mask sampling schemes
+================================================================ */
+const D6 = { k: "zaremba", seed: 11, N: 8, T: 12, p: 0.35 };
+const D6TEXT = {
+  zaremba: "<b>Zaremba et al. (2014) — 이 논문.</b> 세로 연결에만 드롭아웃, 마스크는 타임스텝마다 새로 뽑습니다(저자 구현 기준). 가로 연결은 전부 그대로 통과 — 오른쪽 격자가 비어 있는 이유입니다.",
+  gal: "<b>Gal &amp; Ghahramani (2016) — variational dropout.</b> 가로 연결에도 드롭아웃을 겁니다. 대신 <b>시퀀스 하나에 마스크 하나</b>를 뽑아 모든 타임스텝에 재사용합니다(격자의 세로 줄무늬). 같은 유닛이 계속 죽어 있으므로 노이즈가 스텝마다 새로 곱해지지 않아, 이 논문이 지적한 지수 붕괴를 피합니다. 베이지안 근사로 이론적 정당화까지 붙였습니다.",
+  zoneout: "<b>Zoneout (Krueger et al., 2016).</b> 순환 연결의 유닛을 0으로 만드는 대신 <b>이전 시각의 값을 그대로 복사</b>합니다(h_t ← h_{t−1}). 정보를 지우는 게 아니라 얼리는 셈이라, 노이즈를 넣으면서도 기억 통로를 끊지 않습니다. 오른쪽 격자의 색칠된 칸은 '0이 됨'이 아니라 '동결됨'입니다."
+};
+function d6Grid(canvas, mask, color) {
+  const cell = 20, gap = 3;
+  const W = D6.T * (cell + gap), H = D6.N * (cell + gap);
+  const g = ctx2d(canvas, W, H);
+  for (let u = 0; u < D6.N; u++) for (let t = 0; t < D6.T; t++) {
+    g.fillStyle = mask[u][t] ? color : css("--surface2");
+    g.strokeStyle = css("--line"); g.lineWidth = 1;
+    g.beginPath(); g.roundRect(t * (cell + gap) + 1, u * (cell + gap) + 1, cell, cell, 4);
+    g.fill(); g.stroke();
+  }
+}
+function d6Draw() {
+  const rnd = mulberry32(D6.seed);
+  const zeros = () => Array.from({ length: D6.N }, () => new Array(D6.T).fill(0));
+  const V = zeros(), Hm = zeros();
+  if (D6.k === "zaremba") {
+    for (let u = 0; u < D6.N; u++) for (let t = 0; t < D6.T; t++) V[u][t] = rnd() < D6.p ? 1 : 0;
+  } else if (D6.k === "gal") {
+    const mv = Array.from({ length: D6.N }, () => rnd() < D6.p ? 1 : 0);
+    const mh = Array.from({ length: D6.N }, () => rnd() < D6.p ? 1 : 0);
+    for (let u = 0; u < D6.N; u++) for (let t = 0; t < D6.T; t++) { V[u][t] = mv[u]; Hm[u][t] = mh[u]; }
+  } else {
+    for (let u = 0; u < D6.N; u++) for (let t = 0; t < D6.T; t++) { V[u][t] = rnd() < D6.p ? 1 : 0; Hm[u][t] = rnd() < D6.p ? 1 : 0; }
+  }
+  d6Grid($("d6v"), V, css("--s1"));
+  d6Grid($("d6h"), Hm, D6.k === "zoneout" ? css("--s3") : css("--crit"));
+  $("d6note").innerHTML = D6TEXT[D6.k];
+}
+document.querySelectorAll(".d6tab").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".d6tab").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); D6.k = b.dataset.k; d6Draw();
+}));
+$("d6re").addEventListener("click", () => { D6.seed = (D6.seed * 1103515245 + 12345) >>> 0; d6Draw(); });
+
+/* ================================================================
+   Quiz
+================================================================ */
+document.querySelectorAll(".quiz").forEach(qz => {
+  const ans = +qz.dataset.answer;
+  const btns = qz.querySelectorAll(".opts button");
+  btns.forEach((b, i) => b.addEventListener("click", () => {
+    btns.forEach(x => { x.disabled = true; });
+    btns[ans].classList.add("correct");
+    if (i !== ans) b.classList.add("wrong");
+    qz.querySelector(".expl").classList.add("show");
+  }));
+});
+
+/* ---------- init / redraw ---------- */
+function drawAll() {
+  d1Draw(); d2Draw(); d3Draw(); d4Draw();
+  d5Draw(document.querySelector(".d5tab.on").dataset.k);
+  d6Draw();
+}
+d3Sample();
+drawAll();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+let rzT; addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(d2Chart, 150); });
+</script>
+</body>
+</html>
