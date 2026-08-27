@@ -197,6 +197,16 @@ table.tbl td.hl { background: var(--accent-soft); color: var(--accent-ink); font
 .quiz .opts button.wrong { border-color: var(--crit); background: color-mix(in srgb, var(--crit) 10%, var(--surface)); }
 .quiz .expl { display: none; margin-top: 12px; font-size: .9rem; color: var(--ink2); border-top: 1px dashed var(--line); padding-top: 10px; }
 .quiz .expl.show { display: block; }
+details {
+  background: var(--surface2); border: 1px solid var(--line); border-radius: 11px;
+  padding: 11px 16px; margin: 16px 0; font-size: .93rem;
+}
+details summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); }
+details[open] summary { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+details p:first-of-type { margin-top: 4px; }
+table.tbl td.unit { font-family: ui-monospace, Menlo, monospace; }
+table.tbl tr.dropped td { background: color-mix(in srgb, var(--crit) 11%, var(--surface)); color: var(--crit); }
+table.tbl tr.dropped td.rowhead { background: color-mix(in srgb, var(--crit) 16%, var(--surface)); }
 .theme-toggle { position: fixed; top: 14px; right: 14px; z-index: 10; border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
 .toc { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 22px; margin: 22px 0; font-size: .92rem; }
 .toc ol { margin: 6px 0 2px; padding-left: 20px; }
@@ -442,6 +452,74 @@ RNN을 설명하는 그림은 보통 <strong>1층</strong>으로 그립니다. �
 4층으로 가면 격차는 더 벌어집니다(2배 넓어질 뿐).
 </p>
 
+<details>
+<summary>919라는 숫자는 어떻게 나왔나 — 계산 펼쳐 보기</summary>
+
+<p><b>1단계. 왜 파라미터가 <code>n²</code>에 비례하는가</b></p>
+<p>
+LSTM 한 층의 가중치는 논문 표기로 <code>T_{2n,4n}</code>, 즉 <strong>행 4n개 × 열 2n개짜리 행렬</strong>입니다.
+</p>
+<ul style="margin:8px 0;padding-left:20px">
+<li><b>열이 2n인 이유</b> — 입력이 두 배열을 이어 붙인 것: 아래층에서 온 <code>h_t^{l-1}</code>(n칸) + 이전 시각 <code>h_{t-1}^l</code>(n칸)</li>
+<li><b>행이 4n인 이유</b> — 게이트가 4개: <code>i</code>, <code>f</code>, <code>o</code>, <code>g</code> 각각 n칸씩</li>
+</ul>
+<p>
+들어오는 숫자 하나하나가 나가는 숫자 하나하나와 <b>전부</b> 연결되기 때문에 곱셈이 됩니다.
+</p>
+<pre><code>한 층의 파라미터 = 4n × 2n = 8n²        (편향 4n은 전체의 0.08%라 무시)
+
+n = 650  →  8 × 650² = 3,380,000 ≈ 3.4M   ← 그림 2의 "1층" 값</code></pre>
+
+<p><b>2단계. 파라미터를 "정사각형의 넓이"로 생각하기</b></p>
+<p>
+가중치 행렬은 <code>n × n</code> 정사각형이고, 그 <strong>넓이가 파라미터 수</strong>입니다. 그러면 두 방법의 차이가 한눈에 보입니다.
+</p>
+<ul style="margin:8px 0;padding-left:20px">
+<li><b>쌓기</b> = 같은 정사각형을 <b>하나 더 놓기</b> → 넓이 ×L (<b>선형</b>)</li>
+<li><b>넓히기</b> = 정사각형의 <b>한 변을 늘리기</b> → 넓이 ×w² (<b>제곱</b>)</li>
+</ul>
+
+<p><b>3단계. 같은 넓이의 정사각형 하나</b></p>
+<p>"L개의 정사각형과 넓이가 같은 정사각형 하나의 한 변"을 구하면 끝입니다.</p>
+<pre><code>L층(각 n칸)의 총 넓이 = L × 8n²
+1층(폭 w)의 넓이     =     8w²
+
+            8w² = L × 8n²
+             w² = L·n²
+              w = n√L        ←  이게 전부</code></pre>
+<p>
+<strong>넓이가 L배면 한 변은 √L배.</strong> 정사각형 넓이를 2배로 만들려면 한 변은 1.41배만 늘리면 되는, 그 얘기입니다.
+</p>
+
+<div class="scrollx">
+<table class="tbl">
+<tr><th>L</th><th>√L</th><th>w = 650 × √L</th><th>그림 2 표시값</th></tr>
+<tr><td>1</td><td>1.000</td><td>650.0</td><td>650유닛</td></tr>
+<tr><td>2</td><td>1.414</td><td>919.2</td><td class="hl">919유닛</td></tr>
+<tr><td>3</td><td>1.732</td><td>1125.8</td><td>1126유닛</td></tr>
+<tr><td>4</td><td>2.000</td><td>1300.0</td><td>1300유닛</td></tr>
+</table>
+</div>
+<p class="meta">
+검산 — L = 2면 예산이 6,765,200개. <code>8w² = 6,765,200</code> → <code>w² = 845,650</code> → <code>w = 919.6</code>.
+(위 데모는 편향 <code>4n</code>까지 포함해 <code>8w² + 4w = P</code>를 풀기 때문에 소수점 이하만 다릅니다.)
+</p>
+
+<p><b>그래서 무엇을 뜻하는가 — 넓히기는 수익률이 체감합니다</b></p>
+<div class="scrollx">
+<table class="tbl">
+<tr><th>파라미터 예산</th><th>쌓으면</th><th>넓히면</th></tr>
+<tr><td class="rowhead">×2</td><td class="hl">처리 단계 2배</td><td>폭 1.41배, 처리 단계는 그대로 1</td></tr>
+<tr><td class="rowhead">×4</td><td class="hl">처리 단계 4배</td><td>폭 2배, 처리 단계는 그대로 1</td></tr>
+</table>
+</div>
+<p>
+같은 돈으로 <strong>깊이는 선형으로 사고, 폭은 제곱근으로밖에 못 삽니다.</strong>
+물론 이건 파라미터 효율 얘기일 뿐이고, 층을 무한정 쌓으면 학습이 안 됩니다(아래 ④).
+논문이 2~4층에서 멈춘 이유입니다.
+</p>
+</details>
+
 <h4 style="font-size:.98rem;margin:22px 0 6px">③ 이 논문에서는 특히 — 1층이면 논문 얘기가 성립을 안 한다</h4>
 <p>
 이게 이 페이지가 2층으로 그린 진짜 이유입니다. 논문의 주장은
@@ -601,11 +679,57 @@ nn.LSTM(..., num_layers=2, dropout=0.5)   # ✅ 1층 → 2층 사이에 적용</
 </p>
 
 <div class="note">
-<b>그래서 아래 데모의 화살표는 가느다란 선 3가닥으로 그렸습니다.</b>
-650을 3으로 축소한 것이고, <b>선 1가닥 = 유닛 1개</b>입니다.
-각 가닥이 확률 <code>p</code>로 <b>독립적으로</b> 끊깁니다 —
-"마스크 다시 뽑기"를 누를 때마다 3가닥 중 0~3개가 무작위로 빨갛게 변하는 게 그 뜻입니다.
-세로와 가로가 둘 다 3가닥인 이유도 같습니다. 두 화살표 모두 같은 크기의 벡터를 나르니까요.
+<b>용어 정리.</b> <b>유닛(unit)</b>은 배열 그 자체가 아니라 <b>배열의 칸 하나</b>입니다.
+그 칸들을 모아 놓은 배열 전체를 <b>벡터(vector)</b>라고 부르고요.
+코드로 쓰면 이게 전부입니다.
+</div>
+
+<pre><code>h = [0.9, -0.4, 0.6, ...]   # 길이 650짜리 배열  →  이게 "벡터"
+len(h) == 650               # 배열의 길이         →  이게 "1층은 650유닛"
+h[0]                        # 배열의 첫 칸        →  이게 "1번째 유닛의 값"</code></pre>
+
+<p>
+논문의 <code>h_t^l ∈ ℝ⁶⁵⁰</code>라는 표기가 정확히 "실수 650개짜리 배열"이라는 뜻입니다.
+그리고 드롭아웃 연산자 <code>D</code>는 진짜로 이것뿐입니다 —
+같은 길이의 0/1 마스크를 만들어 <strong>원소별로 곱하는 것</strong>.
+</p>
+
+<pre><code>mask = [1, 0, 1, ...]                    # 650개, 각 칸이 독립적으로 확률 p로 0
+D_h  = [h[i] * mask[i] for i in range(650)]   # 꺼진 칸만 0이 되고 나머지는 그대로</code></pre>
+
+<div class="demo">
+<div class="demo-title">그림 3 · 보고서 한 장에 마스크를 씌우면</div>
+<div class="demo-sub">왼쪽은 1층이 2층으로 올리는 보고서의 실제 크기 — 칸 하나가 유닛 하나입니다. 그중 위 3칸만 확대한 것이 오른쪽 표이고, 그 3칸이 곧 데모 1의 선 3가닥입니다.</div>
+<div class="controls">
+  <label>드롭 확률 p <input type="range" id="g3p" min="0" max="90" value="50" step="5"> <span class="readout" id="g3pv">0.50</span></label>
+  <button id="g3re">🎲 마스크 다시 뽑기</button>
+</div>
+<div class="panelrow">
+  <div class="panel">
+    <canvas id="g3grid"></canvas>
+    <div class="cap">1층의 출력 <code>h</code> — 650칸<br><span class="readout" id="g3alive">–</span> 살아남음</div>
+  </div>
+  <div style="flex:1;min-width:290px">
+    <div class="scrollx">
+    <table class="tbl" id="g3tbl">
+      <tr><th>유닛</th><th>1층이 쓴 값<br><code>h[i]</code></th><th>마스크<br><code>mask[i]</code></th><th>2층이 받는 값<br><code>D(h)[i]</code></th></tr>
+    </table>
+    </div>
+    <p class="meta" id="g3note" style="margin-top:8px"></p>
+  </div>
+</div>
+<div class="legend">
+  <span><span class="sw" style="background:var(--s1)"></span>살아남은 유닛 — 값이 그대로 전달됨</span>
+  <span><span class="sw" style="background:var(--crit)"></span>마스크로 0이 된 유닛 — 그날 결근</span>
+</div>
+</div>
+
+<div class="note">
+<b>그래서 아래 데모 1의 화살표는 가느다란 선 3가닥으로 그렸습니다.</b>
+위 650칸을 3칸으로 축소한 것이고, <b>선 1가닥 = 배열의 칸 1개 = 유닛 1개</b>입니다.
+1번째·2번째·3번째 선은 <b>순위나 등급이 아니라 그냥 배열의 첫째 칸·둘째 칸·셋째 칸</b>이고,
+셋 중 하나를 고르는 갈림길이 아니라 <b>한 케이블 안의 세 가닥이라 매번 셋 다 함께 갑니다.</b><br>
+세로와 가로가 둘 다 3가닥인 이유도 같습니다 — 두 화살표 모두 같은 길이의 배열을 나르니까요.
 <b>차이는 굵기가 아니라, 논문이 세로 가닥만 끊고 가로 가닥에는 손대지 않는다는 것뿐입니다.</b>
 </div>
 
@@ -641,6 +765,17 @@ nn.LSTM(..., num_layers=2, dropout=0.5)   # ✅ 1층 → 2층 사이에 적용</
   <div class="stat">가로 유닛 끊김<b id="d1hs">–</b></div>
   <div class="stat hl" id="d1memstat">기억 통로 상태<b id="d1mem">온전함</b></div>
 </div>
+
+<hr style="border:0;border-top:1px dashed var(--line);margin:20px 0 14px">
+<div class="demo-title">화살표 하나를 골라 숫자로 보기</div>
+<div class="demo-sub">위 그림에서 화살표 하나를 골라 그 안의 유닛 3개가 실제로 어떤 값으로 전달되는지 봅니다. 고른 화살표는 그림에서 노란 테두리로 표시됩니다.</div>
+<div class="controls" id="d1sel"></div>
+<div class="scrollx">
+<table class="tbl" id="d1tbl">
+  <tr><th>유닛(가닥)</th><th>보낸 값</th><th>마스크</th><th>받는 값</th></tr>
+</table>
+</div>
+<p class="meta" id="d1selnote"></p>
 </div>
 
 <!-- ================================================================ -->
@@ -1271,10 +1406,65 @@ $("g2L").addEventListener("input", e => { G2.L = +e.target.value; $("g2Lv").text
 /* ================================================================
    Demo 1 — Figure 2: where the mask lands on the grid
 ================================================================ */
-const D1 = { mode: "vert", p: 0.5, L: 2, T: 5, WIRES: 3, seed: 7 };
+/* ================================================================
+   Figure 3 — one report sheet, with a mask on it
+================================================================ */
+const G3 = { p: 0.5, seed: 5, N: 650, vals: [0.90, -0.40, 0.60] };
+function g3Draw() {
+  const cols = 26, rows = G3.N / cols, cell = 9, gap = 2;
+  const g = ctx2d($("g3grid"), cols * (cell + gap), rows * (cell + gap));
+  const rnd = mulberry32(G3.seed);
+  const mask = [];
+  for (let i = 0; i < G3.N; i++) mask.push(rnd() < G3.p ? 0 : 1);
+  let alive = 0;
+  for (let i = 0; i < G3.N; i++) {
+    if (mask[i]) alive++;
+    const r = Math.floor(i / cols), c = i % cols;
+    g.fillStyle = mask[i] ? css("--s1") : css("--crit");
+    g.globalAlpha = mask[i] ? 0.85 : 0.75;
+    g.beginPath(); g.roundRect(c * (cell + gap), r * (cell + gap), cell, cell, 2); g.fill();
+    g.globalAlpha = 1;
+    if (i < 3) { g.strokeStyle = css("--ink"); g.lineWidth = 1.6; g.stroke(); }
+  }
+  $("g3alive").textContent = alive + " / " + G3.N;
+
+  const t = $("g3tbl");
+  t.innerHTML = '<tr><th>유닛</th><th>1층이 쓴 값<br><code>h[i]</code></th><th>마스크<br><code>mask[i]</code></th><th>2층이 받는 값<br><code>D(h)[i]</code></th></tr>';
+  G3.vals.forEach((v, i) => {
+    const m = mask[i];
+    t.insertAdjacentHTML("beforeend",
+      '<tr class="' + (m ? "" : "dropped") + '"><td class="rowhead">h[' + i + '] · ' + (i + 1) + '번째 가닥</td>' +
+      '<td class="unit">' + v.toFixed(2) + '</td><td class="unit">' + m + '</td>' +
+      '<td class="unit"><b>' + (m ? v.toFixed(2) : "0.00") + '</b></td></tr>');
+  });
+  const nDrop = 3 - G3.vals.reduce((s, _, i) => s + mask[i], 0);
+  $("g3note").innerHTML = nDrop === 0
+    ? "이번 마스크에서는 위 3칸이 모두 살아남았습니다. 값이 그대로 2층에 전달됩니다. 다시 뽑아 보세요."
+    : "이번 마스크에서 <b>" + nDrop + "칸</b>이 0이 되었습니다 — 그 유닛이 나르던 정보는 2층에 도착하지 못합니다. "
+      + "값(<code>h[i]</code>)은 그대로인데 <b>마스크만 매번 새로 뽑힌다</b>는 점에 주목하세요.";
+}
+$("g3p").addEventListener("input", e => { G3.p = e.target.value / 100; $("g3pv").textContent = G3.p.toFixed(2); g3Draw(); });
+$("g3re").addEventListener("click", () => { G3.seed = (G3.seed * 1103515245 + 12345) >>> 0; g3Draw(); });
+
+/* ================================================================
+   Demo 1 — Figure 2: where the mask lands on the grid
+================================================================ */
+const D1 = { mode: "vert", p: 0.5, L: 2, T: 5, WIRES: 3, seed: 7, sel: "v:2:0", rec: {}, vals: {} };
+
+// deterministic per-connection values (they never change; only the mask does)
+function d1Vals(id) {
+  if (!D1.vals[id]) {
+    let h = 2166136261;
+    for (let k = 0; k < id.length; k++) h = Math.imul(h ^ id.charCodeAt(k), 16777619) >>> 0;
+    const r = mulberry32(h || 1);
+    D1.vals[id] = [0, 1, 2].map(() => +((r() * 2 - 1) * 1.2).toFixed(2));
+  }
+  return D1.vals[id];
+}
 
 function d1Draw() {
   const { L, T, WIRES } = D1;
+  D1.rec = {};
   const colW = 96, padL = 58, rowGap = 82, nodeH = 34, nodeW = 15;
   const W = padL + (T - 1) * colW + 58;
   const H = 42 + L * rowGap + 44;
@@ -1292,13 +1482,15 @@ function d1Draw() {
   g.textAlign = "center"; g.textBaseline = "middle";
 
   // ---- helper to draw a bundle of wires
-  function bundle(x1, y1, x2, y2, eligible, horizontal) {
+  function bundle(id, x1, y1, x2, y2, eligible, horizontal) {
+    const mask = [];
     for (let w = 0; w < WIRES; w++) {
       const off = (w - (WIRES - 1) / 2) * 5;
       const ox = horizontal ? 0 : off, oy = horizontal ? off : 0;
       let dropped = false;
       if (eligible) { dropped = rnd() < D1.p; if (horizontal) { hTot++; if (dropped) hDrop++; } else { vTot++; if (dropped) vDrop++; } }
       else if (horizontal) hTot++; else vTot++;
+      mask.push(dropped ? 0 : 1);
       g.lineWidth = 1.6;
       if (dropped) { g.strokeStyle = css("--crit"); g.globalAlpha = 0.55; }
       else { g.strokeStyle = horizontal ? css("--s2") : css("--s1"); g.globalAlpha = 0.95; }
@@ -1310,21 +1502,33 @@ function d1Draw() {
     g.globalAlpha = 0.9;
     arrowHead(g, x2, y2, horizontal ? "right" : "up");
     g.globalAlpha = 1;
+    D1.rec[id] = { mask, eligible, horizontal, x1, y1, x2, y2 };
   }
 
   // ---- vertical connections
   for (let i = 0; i < T; i++) {
     // input -> layer 1
-    bundle(colX(i), inY - 10, colX(i), nodeY(1) + nodeH / 2 + 2, vertOn, false);
+    bundle("v:" + i + ":0", colX(i), inY - 10, colX(i), nodeY(1) + nodeH / 2 + 2, vertOn, false);
     // layer l -> l+1
-    for (let l = 1; l < L; l++) bundle(colX(i), nodeY(l) - nodeH / 2, colX(i), nodeY(l + 1) + nodeH / 2 + 2, vertOn, false);
+    for (let l = 1; l < L; l++) bundle("v:" + i + ":" + l, colX(i), nodeY(l) - nodeH / 2, colX(i), nodeY(l + 1) + nodeH / 2 + 2, vertOn, false);
     // layer L -> output
-    bundle(colX(i), nodeY(L) - nodeH / 2, colX(i), outY + 10, vertOn, false);
+    bundle("v:" + i + ":" + L, colX(i), nodeY(L) - nodeH / 2, colX(i), outY + 10, vertOn, false);
   }
   // ---- horizontal (recurrent) connections
   for (let l = 1; l <= L; l++)
     for (let i = 0; i < T - 1; i++)
-      bundle(colX(i) + nodeW / 2, nodeY(l), colX(i + 1) - nodeW / 2 - 2, nodeY(l), horizOn, true);
+      bundle("h:" + i + ":" + l, colX(i) + nodeW / 2, nodeY(l), colX(i + 1) - nodeW / 2 - 2, nodeY(l), horizOn, true);
+
+  // ---- highlight the selected connection
+  const sel = D1.rec[D1.sel];
+  if (sel) {
+    const pad = 11;
+    g.strokeStyle = "#e8a33d"; g.lineWidth = 2.2; g.setLineDash([]);
+    g.beginPath();
+    g.roundRect(Math.min(sel.x1, sel.x2) - pad, Math.min(sel.y1, sel.y2) - pad,
+      Math.abs(sel.x2 - sel.x1) + 2 * pad, Math.abs(sel.y2 - sel.y1) + 2 * pad, 7);
+    g.stroke();
+  }
 
   // ---- nodes
   for (let i = 0; i < T; i++) for (let l = 1; l <= L; l++) {
@@ -1353,6 +1557,43 @@ function d1Draw() {
     $("d1mem").textContent = "온전함";
     memEl.classList.add("hl"); memEl.classList.remove("bad");
   }
+  d1Picker();
+}
+
+/* selector buttons + per-connection number table */
+function d1Picker() {
+  const L = D1.L, opts = [];
+  opts.push({ id: "v:2:0", label: "↑ x_t → 1층" });
+  for (let l = 1; l < L; l++) opts.push({ id: "v:2:" + l, label: "↑ " + l + "층 → " + (l + 1) + "층" });
+  opts.push({ id: "v:2:" + L, label: "↑ " + L + "층 → y_t" });
+  opts.push({ id: "h:2:1", label: "▶ 1층의 t → t+1 (메모장)" });
+  if (!opts.some(o => o.id === D1.sel)) D1.sel = "v:2:0";
+
+  const box = $("d1sel");
+  box.innerHTML = opts.map(o =>
+    '<button class="d1pick' + (o.id === D1.sel ? " on" : "") + '" data-id="' + o.id + '">' + o.label + '</button>').join("");
+  box.querySelectorAll(".d1pick").forEach(b => b.addEventListener("click", () => { D1.sel = b.dataset.id; d1Draw(); }));
+
+  const rec = D1.rec[D1.sel];
+  const vals = d1Vals(D1.sel);
+  const t = $("d1tbl");
+  t.innerHTML = '<tr><th>유닛(가닥)</th><th>보낸 값</th><th>마스크</th><th>받는 값</th></tr>';
+  vals.forEach((v, i) => {
+    const m = rec.mask[i];
+    t.insertAdjacentHTML("beforeend",
+      '<tr class="' + (m ? "" : "dropped") + '"><td class="rowhead">' + (i + 1) + '번째 가닥</td>' +
+      '<td class="unit">' + v.toFixed(2) + '</td><td class="unit">' + m + '</td>' +
+      '<td class="unit"><b>' + (m ? v.toFixed(2) : "0.00") + '</b></td></tr>');
+  });
+  const nDrop = rec.mask.filter(m => !m).length;
+  $("d1selnote").innerHTML = !rec.eligible
+    ? (rec.horizontal
+      ? "이 화살표는 <b>가로(순환) 연결</b>이고, 지금 모드에서는 드롭아웃이 걸려 있지 않습니다 — <b>마스크가 전부 1이라 세 값이 그대로 통과합니다.</b> 논문이 지키려는 게 정확히 이 통로입니다."
+      : "지금은 드롭아웃 \"없음\" 모드라 마스크가 전부 1입니다. 세 값이 그대로 전달됩니다.")
+    : (nDrop === 0
+      ? "이번 마스크에서는 세 가닥이 모두 살아남았습니다. 확률 p로 매번 다르게 뽑히니 \"마스크 다시 뽑기\"를 눌러 보세요."
+      : "이번 마스크에서 <b>" + nDrop + "가닥</b>이 0이 되었습니다 — 그림에서 빨간 점선으로 보이는 그 가닥입니다. "
+        + "<b>보낸 값은 그대로인데 받는 값만 0</b>이 된다는 점, 그리고 다시 뽑을 때마다 <b>다른 가닥</b>이 죽는다는 점을 확인하세요.");
 }
 document.querySelectorAll(".d1mode").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll(".d1mode").forEach(x => x.classList.remove("on"));
@@ -1726,7 +1967,7 @@ document.querySelectorAll(".quiz").forEach(qz => {
 
 /* ---------- init / redraw ---------- */
 function drawAll() {
-  g1Draw(); g2Draw(); d1Draw(); d2Draw(); d3Draw(); d4Draw();
+  g1Draw(); g2Draw(); g3Draw(); d1Draw(); d2Draw(); d3Draw(); d4Draw();
   d5Draw(document.querySelector(".d5tab.on").dataset.k);
   d6Draw();
 }
