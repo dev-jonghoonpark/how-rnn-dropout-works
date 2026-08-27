@@ -279,6 +279,10 @@ Zaremba·Sutskever·Vinyals는 아주 작은 수정 하나로 이 문제를 풀�
 단어가 하나 들어오면 1층이 먼저 처리해서 2층에 올리고, 2층이 정리해서 답을 내놓습니다.
 그런데 문장에는 단어가 여러 개죠. <strong>같은 조직이 단어 개수만큼 같은 일을 반복</strong>합니다.
 </p>
+<p class="meta">
+왜 하필 2층이냐고요? 논문의 PTB 실험이 실제로 2층 LSTM이기 때문입니다(기계 번역은 4층).
+층을 쌓으면 뭐가 좋은지는 <a href="#s2-why">§2.5</a>에서 따로 다룹니다 — 먼저 그림부터 읽고 가겠습니다.
+</p>
 <p>
 그림으로 그릴 때, 시간이 흐르는 걸 보여주려고 <strong>같은 조직을 오른쪽으로 계속 복사해서 늘어놓습니다.</strong>
 이걸 "시간 축으로 펼친다(unroll)"고 부르고, 그래서 격자가 생깁니다.
@@ -385,6 +389,83 @@ RNN이 다른 신경망과 다른 이유가 오직 이 가로 화살표 하나�
 가로의 노이즈는 <b>기억해야 할 시간만큼</b> 곱해지니 기억 자체를 지워 버립니다.
 </div>
 
+<h3 id="s2-why">2.5 왜 굳이 2층인가 — 층을 쌓으면 뭐가 좋은가</h3>
+
+<p>
+RNN을 설명하는 그림은 보통 <strong>1층</strong>으로 그립니다. 그게 최소 형태니까요.
+그런데 논문들은 거의 예외 없이 층을 쌓습니다 — 이 논문의 PTB 실험은 <strong>2층</strong>,
+기계 번역 실험은 <strong>4층</strong>입니다. 같은 시기 seq2seq(2014)도 4층이었습니다.
+</p>
+
+<h4 style="font-size:.98rem;margin:22px 0 6px">① 1층 RNN은 "시간으로만 깊고, 처리 단계로는 얕다"</h4>
+<p>
+1층 RNN도 시간 방향으로는 100스텝이든 깊습니다. 그런데
+<strong>단어 하나가 그 순간의 답이 되기까지 거치는 처리는 딱 한 단계</strong>뿐입니다.
+사무실 비유로 하면 담당자가 한 명이라 <strong>접수부터 결재까지 혼자</strong> 합니다.
+</p>
+<p>
+층을 쌓으면 그 사이에 단계가 생깁니다. 1층은 "지금 들어온 게 어떤 종류의 단어인가" 같은
+표면적인 특징을 정리하고, 2층은 그걸 받아 "그래서 문장이 지금 어디쯤 와 있나" 같은
+더 추상적인 판단을 합니다. 이미지 인식에서 아래층이 윤곽선을 보고 위층이 물체를 보는 것과 같은 얘기입니다.
+</p>
+
+<h4 style="font-size:.98rem;margin:22px 0 6px">② 같은 예산이면 넓히는 것보다 쌓는 게 낫다</h4>
+<p>
+모델을 키우는 방법은 두 가지입니다 — 층을 <em>쌓거나</em>, 한 층을 <em>넓히거나</em>.
+그런데 가중치 개수는 은닉 크기 <code>n</code>의 <strong>제곱</strong>에 비례합니다.
+넓히면 파라미터가 제곱으로 튀고, 쌓으면 층 수에 비례해서만 늡니다.
+아래에서 직접 확인해 보세요.
+</p>
+
+<div class="demo">
+<div class="demo-title">그림 2 · 층을 하나 올리면 무엇이 따라 변하는가</div>
+<div class="demo-sub">논문 medium 설정(층당 650유닛, 임베딩 650) 기준. 화살표 옆 번호가 정보가 거치는 처리 단계이자, 곧 드롭아웃 지점의 개수입니다.</div>
+<div class="controls">
+  <label>층 수 L <input type="range" id="g2L" min="1" max="4" value="2" step="1"> <span class="readout" id="g2Lv">2</span></label>
+</div>
+<div class="panelrow" style="align-items:center">
+  <div class="panel"><canvas id="g2canvas"></canvas></div>
+  <div style="flex:1;min-width:260px">
+    <div class="stats" style="margin:0">
+      <div class="stat hl">처리 단계 (세로 화살표)<b id="g2steps">3개</b></div>
+      <div class="stat">LSTM 파라미터<b id="g2par">6.8M</b></div>
+      <div class="stat">같은 예산으로 1층만 쓴다면<b id="g2wide">919유닛</b></div>
+    </div>
+    <p class="meta" id="g2note" style="margin-top:12px"></p>
+  </div>
+</div>
+</div>
+
+<p>
+2층(650유닛씩)과 같은 파라미터를 1층에 몰아주면 은닉 크기가 919밖에 안 됩니다 —
+<strong>1.4배 넓어지는 대신 처리 단계는 여전히 1단계</strong>입니다.
+4층으로 가면 격차는 더 벌어집니다(2배 넓어질 뿐).
+</p>
+
+<h4 style="font-size:.98rem;margin:22px 0 6px">③ 이 논문에서는 특히 — 1층이면 논문 얘기가 성립을 안 한다</h4>
+<p>
+이게 이 페이지가 2층으로 그린 진짜 이유입니다. 논문의 주장은
+"<strong>층 사이의</strong> 비순환 연결에만 드롭아웃을 걸어라"인데,
+<strong>층이 하나면 '층 사이'라는 게 아예 없습니다.</strong>
+</p>
+<p>실제로 PyTorch에서도 똑같은 일이 벌어집니다.</p>
+<pre><code>nn.LSTM(..., num_layers=1, dropout=0.5)   # ⚠️ 경고 뜨고 무시됨 — 층 사이가 없으니까
+nn.LSTM(..., num_layers=2, dropout=0.5)   # ✅ 1층 → 2층 사이에 적용</code></pre>
+<p>
+그리고 §2.4에서 센 "지워질 기회 3번"은 사실 <strong>L+1번</strong>이었습니다.
+층이 1개면 2번, 2개면 3번, 4개면 5번 — <strong>층을 올릴 때마다 노이즈를 맞는 지점이 하나씩 늘어납니다.</strong>
+그래서 깊은 모델일수록 드롭아웃 확률을 무작정 키울 수 없습니다.
+</p>
+
+<h4 style="font-size:.98rem;margin:22px 0 6px">④ 대가도 있습니다</h4>
+<p>
+층을 쌓으면 학습이 어려워지고(기울기가 시간 방향과 깊이 방향 양쪽으로 흘러야 합니다),
+연산량이 늘고, 무엇보다 <strong>과적합이 심해집니다.</strong>
+그래서 순환에 깊이까지 겹친 모델일수록 정규화가 절실해지는데,
+하필 그때까지 드롭아웃이 RNN에서 통하지 않았습니다 —
+이 논문이 풀려던 문제가 정확히 그 지점입니다.
+</p>
+
 <p class="meta">
 여기까지가 전부입니다. 이제부터는 같은 이야기를 논문의 언어로 다시 봅니다 —
 "결재 라인"은 <b>비순환(non-recurrent) 연결</b>, "메모장"은 <b>순환(recurrent) 연결</b>,
@@ -428,8 +509,33 @@ RNN이 다른 신경망과 다른 이유가 오직 이 가로 화살표 하나�
 드롭아웃을 가로에 걸면 노이즈가 그만큼 반복해서 곱해집니다.
 </p>
 
+<h3>3.1 그리기 전에 — 화살표 하나는 숫자 하나가 아닙니다</h3>
+
 <p>
-아래는 논문 Figure 2의 재현입니다. <strong>점선 = 드롭아웃이 적용되는 연결</strong>,
+§2에서 1층 담당자를 "한 사람"이라고 불렀지만, 실제로는 <strong>1층이 유닛(뉴런) 650개짜리 팀</strong>입니다
+(논문 medium 설정). 그러니까 1층이 2층으로 올려보내는 것은 숫자 하나가 아니라
+<strong>숫자 650개짜리 서류 뭉치</strong> — 수식으로 쓰면 <code>h_t^{l-1} ∈ ℝ⁶⁵⁰</code>인 벡터입니다.
+가로로 넘기는 메모장 <code>h_{t-1}^l</code>도 똑같이 650칸짜리입니다.
+</p>
+<p>
+여기가 중요합니다. <strong>드롭아웃은 화살표를 통째로 끊지 않고, 그 뭉치 안의 유닛을 하나씩 따로 지웁니다.</strong>
+650개 중 무작위로 절반이 0이 되는 식이죠. 그래서 같은 화살표 안에서도
+어떤 유닛은 살아남고 어떤 유닛은 죽습니다.
+</p>
+
+<div class="note">
+<b>그래서 아래 데모의 화살표는 가느다란 선 3가닥으로 그렸습니다.</b>
+650을 3으로 축소한 것이고, <b>선 1가닥 = 유닛 1개</b>입니다.
+각 가닥이 확률 <code>p</code>로 <b>독립적으로</b> 끊깁니다 —
+"마스크 다시 뽑기"를 누를 때마다 3가닥 중 0~3개가 무작위로 빨갛게 변하는 게 그 뜻입니다.
+세로와 가로가 둘 다 3가닥인 이유도 같습니다. 두 화살표 모두 같은 크기의 벡터를 나르니까요.
+<b>차이는 굵기가 아니라, 논문이 세로 가닥만 끊고 가로 가닥에는 손대지 않는다는 것뿐입니다.</b>
+</div>
+
+<h3>3.2 논문 Figure 2 재현</h3>
+
+<p>
+<strong>점선 = 드롭아웃이 적용되는 연결</strong>,
 <strong>실선 = 적용되지 않는 연결.</strong> 모드를 바꿔 가며 어떤 연결이 끊기는지 직접 보세요.
 </p>
 
@@ -1015,6 +1121,59 @@ document.querySelectorAll(".g1mode").forEach(b => b.addEventListener("click", ()
 }));
 
 /* ================================================================
+   Figure 2 — what changes when you add a layer
+================================================================ */
+const G2 = { L: 2, n: 650 };
+function g2Draw() {
+  const { L, n } = G2;
+  const W = 300, boxH = 34, gap = 64, boxW = 116, cx = 150;
+  const outY = 22;                                   // "내놓는 답" label
+  const yTop = outY + 12 + 28 + boxH / 2;            // top layer box center
+  const yOf = l => yTop + (L - l) * gap;             // l = 1..L, center
+  const inY = yOf(1) + boxH / 2 + 34;                // bottom arrow start
+  const H = inY + 26;
+  const g = ctx2d($("g2canvas"), W, H);
+
+  g.textAlign = "center"; g.textBaseline = "middle";
+  function arrow(y1, y2, num) {
+    g.strokeStyle = css("--s1"); g.fillStyle = css("--s1"); g.lineWidth = 2.4;
+    g.beginPath(); g.moveTo(cx, y1); g.lineTo(cx, y2); g.stroke();
+    arrowHead(g, cx, y2, "up");
+    const my = (y1 + y2) / 2;
+    g.beginPath(); g.arc(cx + 22, my, 10, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.font = "bold 11px ui-monospace, Menlo, monospace";
+    g.fillText(String(num), cx + 22, my + 0.5);
+  }
+  arrow(inY, yOf(1) + boxH / 2 + 4, 1);
+  for (let l = 1; l < L; l++) arrow(yOf(l) - boxH / 2, yOf(l + 1) + boxH / 2 + 4, l + 1);
+  arrow(yOf(L) - boxH / 2, outY + 10, L + 1);
+
+  for (let l = 1; l <= L; l++) {
+    g.fillStyle = css("--surface2"); g.strokeStyle = css("--ink2"); g.lineWidth = 1.4;
+    g.beginPath(); g.roundRect(cx - boxW / 2, yOf(l) - boxH / 2, boxW, boxH, 8); g.fill(); g.stroke();
+    g.fillStyle = css("--ink"); g.font = "12px -apple-system, sans-serif";
+    g.fillText(l + "층 · " + n + "유닛", cx, yOf(l));
+  }
+  g.fillStyle = css("--muted"); g.font = "12px -apple-system, sans-serif";
+  g.fillText("들어오는 단어", cx, inY + 14);
+  g.fillText("내놓는 답", cx, outY);
+
+  // stats
+  const perLayer = 4 * (2 * n * n + n);
+  const total = L * perLayer;
+  const wide = (-1 + Math.sqrt(1 + 2 * total)) / 4;   // solve 4(2w²+w) = total
+  $("g2steps").textContent = (L + 1) + "개";
+  $("g2par").textContent = (total / 1e6).toFixed(1) + "M";
+  $("g2wide").textContent = Math.round(wide) + "유닛";
+  $("g2note").innerHTML = L === 1
+    ? "층이 1개면 <b>층 사이가 없습니다</b> — 이 논문이 말하는 \"층 사이의 드롭아웃\"을 걸 자리가 아예 없고, PyTorch도 <code>dropout</code> 인자를 무시합니다."
+    : "층 " + L + "개(각 " + n + "유닛)와 같은 파라미터를 1층에 몰아주면 은닉 크기가 " + Math.round(wide)
+      + "밖에 안 됩니다 — <b>" + (wide / n).toFixed(2) + "배 넓어질 뿐, 처리 단계는 여전히 1단계</b>입니다. "
+      + "그리고 드롭아웃 지점이 " + (L + 1) + "개로 늘었다는 점도 함께 보세요.";
+}
+$("g2L").addEventListener("input", e => { G2.L = +e.target.value; $("g2Lv").textContent = G2.L; g2Draw(); });
+
+/* ================================================================
    Demo 1 — Figure 2: where the mask lands on the grid
 ================================================================ */
 const D1 = { mode: "vert", p: 0.5, L: 2, T: 5, WIRES: 3, seed: 7 };
@@ -1472,7 +1631,7 @@ document.querySelectorAll(".quiz").forEach(qz => {
 
 /* ---------- init / redraw ---------- */
 function drawAll() {
-  g1Draw(); d1Draw(); d2Draw(); d3Draw(); d4Draw();
+  g1Draw(); g2Draw(); d1Draw(); d2Draw(); d3Draw(); d4Draw();
   d5Draw(document.querySelector(".d5tab.on").dataset.k);
   d6Draw();
 }
