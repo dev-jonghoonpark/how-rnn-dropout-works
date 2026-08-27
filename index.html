@@ -226,15 +226,16 @@ Zaremba·Sutskever·Vinyals는 아주 작은 수정 하나로 이 문제를 풀�
 <strong>차례</strong>
 <ol>
 <li><a href="#s1">문제 — 큰 RNN은 과적합하는데, 드롭아웃을 쓰면 더 나빠졌다</a></li>
-<li><a href="#s2">지도 — LSTM 격자의 두 방향</a></li>
-<li><a href="#s3">수식 — D는 어디에 붙는가</a></li>
-<li><a href="#s4">핵심 — 노이즈는 몇 번 곱해지는가 (L+1 vs L+1+Δt)</a></li>
-<li><a href="#s5">기억은 얼마나 살아남는가 — 200개 유닛 시뮬레이션</a></li>
-<li><a href="#s6">게이트 위에서 확인하기 — LSTM 한 스텝 직접 계산</a></li>
-<li><a href="#s7">논문의 실험 결과</a></li>
-<li><a href="#s8">그 후 — 순환 연결에 드롭아웃을 "제대로" 거는 법</a></li>
-<li><a href="#s9">정리 — 한 문장으로</a></li>
-<li><a href="#s10">이해도 퀴즈</a></li>
+<li><a href="#s2"><b>먼저 — 그림 읽는 법 (비전공자를 위한 5분 안내)</b></a></li>
+<li><a href="#s3">지도 — LSTM 격자의 두 방향</a></li>
+<li><a href="#s4">수식 — D는 어디에 붙는가</a></li>
+<li><a href="#s5">핵심 — 노이즈는 몇 번 곱해지는가 (L+1 vs L+1+Δt)</a></li>
+<li><a href="#s6">기억은 얼마나 살아남는가 — 200개 유닛 시뮬레이션</a></li>
+<li><a href="#s7">게이트 위에서 확인하기 — LSTM 한 스텝 직접 계산</a></li>
+<li><a href="#s8">논문의 실험 결과</a></li>
+<li><a href="#s9">그 후 — 순환 연결에 드롭아웃을 "제대로" 거는 법</a></li>
+<li><a href="#s10">정리 — 한 문장으로</a></li>
+<li><a href="#s11">이해도 퀴즈</a></li>
 </ol>
 </div>
 
@@ -263,11 +264,142 @@ Zaremba·Sutskever·Vinyals는 아주 작은 수정 하나로 이 문제를 풀�
 </div>
 
 <!-- ================================================================ -->
-<h2 id="s2">§2 지도 — LSTM 격자의 두 방향</h2>
+<h2 id="s2">§2 먼저 — 그림 읽는 법 (비전공자를 위한 5분 안내)</h2>
+
+<p class="lede">
+이 논문의 논거는 그림 한 장으로 끝납니다. 다만 그 그림을 읽는 법을 모르면 아무 말도 아니게 되죠.
+수식은 잠시 잊고, <strong>사무실 하나를 상상</strong>하는 것으로 시작하겠습니다.
+이 절만 이해하면 나머지는 전부 따라옵니다.
+</p>
+
+<h3>2.1 RNN은 사실 "작은 조직"입니다</h3>
 
 <p>
-여러 층으로 쌓인 RNN을 시간 축으로 펼치면 <strong>격자(grid)</strong>가 됩니다.
-가로축은 시각 <code>t</code>, 세로축은 층 <code>l</code>. 이 격자 위의 연결은 정확히 두 종류뿐입니다.
+직원이 <strong>2개 층</strong>으로 나뉘어 일하는 사무실이 있습니다.
+단어가 하나 들어오면 1층이 먼저 처리해서 2층에 올리고, 2층이 정리해서 답을 내놓습니다.
+그런데 문장에는 단어가 여러 개죠. <strong>같은 조직이 단어 개수만큼 같은 일을 반복</strong>합니다.
+</p>
+<p>
+그림으로 그릴 때, 시간이 흐르는 걸 보여주려고 <strong>같은 조직을 오른쪽으로 계속 복사해서 늘어놓습니다.</strong>
+이걸 "시간 축으로 펼친다(unroll)"고 부르고, 그래서 격자가 생깁니다.
+격자의 칸 하나하나는 서로 다른 조직이 아니라 <em>같은 조직의 서로 다른 순간</em>입니다.
+</p>
+
+<h3>2.2 화살표는 딱 두 종류입니다</h3>
+
+<p>
+아래 그림에서 버튼을 눌러 화살표를 한 종류씩 켜 보세요. 이게 이 논문 전체의 지도입니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">그림 1 · 화살표 두 종류 — 결재 라인과 메모장</div>
+<div class="demo-sub">"나는 어제 친구와 밥을"이라는 문장을 처리하는 2층 조직입니다. 버튼으로 한 종류씩 켜 보세요.</div>
+<div class="controls">
+  <button class="g1mode on" data-m="both">둘 다 보기</button>
+  <button class="g1mode" data-m="vert">↑ 세로만 (결재 라인)</button>
+  <button class="g1mode" data-m="horiz">▶ 가로만 (메모장)</button>
+</div>
+<div class="scrollx"><canvas id="g1canvas"></canvas></div>
+<div class="legend" style="margin-top:4px">
+  <span>왼쪽 → 오른쪽 = <b>시간의 흐름</b> (단어 순서)</span>
+  <span>아래 → 위 = <b>처리 단계</b> (1층 → 2층 → 답)</span>
+</div>
+<div class="note" id="g1note" style="margin-top:14px"></div>
+</div>
+
+<p>
+<strong>↑ 세로 화살표 = 결재 라인.</strong>
+같은 순간 안에서 1층 → 2층 → 답으로 <em>올라가는</em> 길입니다.
+"어제"라는 단어 하나가 답이 되기까지 거치는 처리 단계죠.
+</p>
+<p>
+<strong>▶ 가로 화살표 = 메모장.</strong>
+같은 담당자가 <em>자기 자신에게 넘기는</em> 쪽지입니다.
+1층 담당자가 "나는"을 처리하며 적어둔 메모를, "어제"를 처리하는 자기 자신에게 넘깁니다.
+</p>
+
+<div class="note">
+<b>가로 화살표가 곧 "기억"입니다.</b> 이게 없으면 "밥을"을 볼 때
+앞에 "어제"라는 말이 있었다는 걸 알아낼 방법이 전혀 없습니다.
+RNN이 다른 신경망과 다른 이유가 오직 이 가로 화살표 하나예요.
+</div>
+
+<h3>2.3 드롭아웃은 "무작위 결근"입니다</h3>
+
+<p>
+드롭아웃은 훈련 중에 <strong>직원 일부를 무작위로 결근시키는</strong> 기법입니다.
+왜 일부러 그럴까요? 특정 직원 한 명에게만 의존하는 조직은 그 사람이 빠지면 무너집니다.
+그래서 훈련 때 일부러 아무나 빼놓고 일을 시켜서, <strong>누가 없어도 굴러가는 조직</strong>으로 만드는 겁니다.
+실전(추론)에서는 전원 출근합니다.
+</p>
+<p>
+문제는 <strong>어느 화살표에서 서류를 지우느냐</strong>입니다.
+결재 라인에서 지울 수도 있고, 메모장을 넘길 때 지울 수도 있죠. 여기서 운명이 갈립니다.
+</p>
+
+<h3>2.4 결정적인 비대칭 — 몇 번 지워지는가</h3>
+
+<p>
+"어제"라는 단어의 정보가 문장 끝의 예측에 쓰인다고 해봅시다. 이 정보가 지나야 하는 길을 세어 보면:
+</p>
+
+<div class="scrollx">
+<table class="tbl">
+<tr><th>어느 화살표</th><th>몇 번 지나는가</th><th>문장이 길어지면?</th></tr>
+<tr>
+  <td class="rowhead" style="color:var(--s1)">↑ 세로 (결재 라인)</td>
+  <td>입력→1층, 1층→2층, 2층→답 = <b>3번</b></td>
+  <td class="hl">그대로 3번 — 층 수로 정해짐</td>
+</tr>
+<tr>
+  <td class="rowhead" style="color:var(--s2)">▶ 가로 (메모장)</td>
+  <td>건너야 할 단어 수만큼</td>
+  <td style="color:var(--crit);font-weight:700">35단어 뒤라면 35번</td>
+</tr>
+</table>
+</div>
+
+<p>
+지울 확률이 매번 절반(p = 0.5)이라고 하면, 정보가 <strong>한 번도 안 지워지고 살아남을 확률</strong>은
+동전을 그 횟수만큼 던져 전부 앞면이 나올 확률과 같습니다.
+</p>
+
+<div class="scrollx">
+<table class="tbl">
+<tr><th>어디에 드롭아웃을 거는가</th><th>지워질 기회</th><th>정보가 살아남을 확률</th></tr>
+<tr><td class="rowhead">세로에만 (논문의 방식)</td><td>3번</td><td class="hl">½ × ½ × ½ = 12.5%</td></tr>
+<tr><td class="rowhead">가로에도 (그전까지의 방식)</td><td>3 + 35 = 38번</td><td style="color:var(--crit);font-weight:700">0.0000000004%</td></tr>
+</table>
+</div>
+
+<p>
+동전 38번을 던져 전부 앞면이 나올 확률입니다 — 사실상 0이죠.
+즉 <strong>메모장을 넘길 때마다 절반씩 지우면, 35번 넘긴 메모장에는 아무것도 남지 않습니다.</strong>
+기억하라고 만든 장치를 기억 못 하게 만든 셈입니다.
+</p>
+
+<div class="note">
+<b>그래서 논문의 결론은 한 줄입니다.</b><br>
+드롭아웃은 <b>세로(결재 라인)</b>에만 걸어라. <b>가로(메모장)</b>에는 절대 걸지 마라.<br>
+세로의 노이즈는 <b>층 수만큼만</b> 곱해지니 조직을 튼튼하게 만드는 딱 적당한 훈련이 되고,
+가로의 노이즈는 <b>기억해야 할 시간만큼</b> 곱해지니 기억 자체를 지워 버립니다.
+</div>
+
+<p class="meta">
+여기까지가 전부입니다. 이제부터는 같은 이야기를 논문의 언어로 다시 봅니다 —
+"결재 라인"은 <b>비순환(non-recurrent) 연결</b>, "메모장"은 <b>순환(recurrent) 연결</b>,
+"무작위 결근"은 <b>드롭아웃 연산자 D</b>라고 부릅니다. 용어만 바뀔 뿐 내용은 같습니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s3">§3 지도 — LSTM 격자의 두 방향</h2>
+
+<p>
+앞 절의 사무실 그림을 논문의 표기로 옮기겠습니다.
+여러 층으로 쌓인 RNN을 시간 축으로 펼치면 <strong>격자(grid)</strong>가 됩니다 — 방금 본 그 격자입니다.
+<strong>가로축</strong>(오른쪽으로 가는 방향)은 시각 <code>t</code>, 즉 몇 번째 단어인지를 나타내고,
+<strong>세로축</strong>(위로 가는 방향)은 층 <code>l</code>, 즉 몇 층 담당자인지를 나타냅니다.
+이 격자 위의 연결은 정확히 두 종류뿐입니다.
 </p>
 
 <div class="scrollx">
@@ -329,7 +461,7 @@ Zaremba·Sutskever·Vinyals는 아주 작은 수정 하나로 이 문제를 풀�
 </div>
 
 <!-- ================================================================ -->
-<h2 id="s3">§3 수식 — D는 어디에 붙는가</h2>
+<h2 id="s4">§4 수식 — D는 어디에 붙는가</h2>
 
 <p>
 논문이 쓰는 표기부터. <code>h_t^l ∈ ℝⁿ</code>은 층 <code>l</code>, 시각 <code>t</code>의 은닉 상태,
@@ -371,7 +503,7 @@ Zaremba·Sutskever·Vinyals는 아주 작은 수정 하나로 이 문제를 풀�
 </div>
 
 <!-- ================================================================ -->
-<h2 id="s4">§4 핵심 — 노이즈는 몇 번 곱해지는가</h2>
+<h2 id="s5">§5 핵심 — 노이즈는 몇 번 곱해지는가</h2>
 
 <p>
 여기가 논문의 심장입니다. 논문 Figure 3은 정보 하나가 격자를 지나는 경로를 굵은 선으로 그리고,
@@ -439,7 +571,7 @@ By not using dropout on the recurrent connections, the LSTM can benefit from dro
 </div>
 
 <!-- ================================================================ -->
-<h2 id="s5">§5 기억은 얼마나 살아남는가 — 200개 유닛 시뮬레이션</h2>
+<h2 id="s6">§6 기억은 얼마나 살아남는가 — 200개 유닛 시뮬레이션</h2>
 
 <p>
 확률을 눈으로 보면 더 분명합니다. 유닛 200개가 각자 "시각 t₀에 무슨 일이 있었는지"를
@@ -487,7 +619,7 @@ p = 0.5에서는 <strong>10스텝이면 200개 중 0개</strong>가 남는 것�
 </div>
 
 <!-- ================================================================ -->
-<h2 id="s6">§6 게이트 위에서 확인하기 — LSTM 한 스텝 직접 계산</h2>
+<h2 id="s7">§7 게이트 위에서 확인하기 — LSTM 한 스텝 직접 계산</h2>
 
 <p>
 추상적인 확률 말고 실제 숫자로 봅시다. 아래는 <code>n = 4</code>짜리 미니 LSTM 한 스텝입니다.
@@ -532,13 +664,13 @@ p = 0.5에서는 <strong>10스텝이면 200개 중 0개</strong>가 남는 것�
 
 <p>
 "양쪽 모두"로 바꾸면 <code>‖Δc_t‖</code>가 눈에 띄게 커집니다. 이 스텝 하나만 보면 별것 아닌 것 같지만,
-§4에서 봤듯 이 손상이 <strong>매 스텝 반복</strong>된다는 게 문제입니다.
+§5에서 봤듯 이 손상이 <strong>매 스텝 반복</strong>된다는 게 문제입니다.
 </p>
 
 <!-- ================================================================ -->
-<h2 id="s7">§7 논문의 실험 결과</h2>
+<h2 id="s8">§8 논문의 실험 결과</h2>
 
-<h3>7.1 언어 모델링 — Penn Tree Bank</h3>
+<h3>8.1 언어 모델링 — Penn Tree Bank</h3>
 <p>
 929k 학습 단어, 73k 검증, 82k 테스트, 어휘 10k. 두 층 LSTM을 35 스텝 펼쳐 학습했습니다.
 </p>
@@ -569,7 +701,7 @@ p = 0.5에서는 <strong>10스텝이면 200개 중 0개</strong>가 남는 것�
 <strong>114.5 → 78.4</strong>로 떨어졌습니다. 앙상블까지 가면 38개 large 모델 평균으로 68.7입니다.
 </p>
 
-<h3>7.2 음성 인식 — Icelandic Speech Dataset</h3>
+<h3>8.2 음성 인식 — Icelandic Speech Dataset</h3>
 <p>93k 발화의 비교적 작은 내부 데이터셋이라 과적합이 큰 걱정거리였습니다. 프레임 단위 정확도:</p>
 <div class="scrollx">
 <table class="tbl">
@@ -583,7 +715,7 @@ p = 0.5에서는 <strong>10스텝이면 200개 중 0개</strong>가 남는 것�
 학습 때 주입한 노이즈가 학습셋 성능을 깎는 대신 일반화를 사옵니다.
 </p>
 
-<h3>7.3 기계 번역 — WMT'14 영어→프랑스어</h3>
+<h3>8.3 기계 번역 — WMT'14 영어→프랑스어</h3>
 <p>4층 LSTM, 은닉·임베딩 1000 유닛, 영어 어휘 160k / 프랑스어 80k, 빔 크기 12. 최적 드롭아웃 확률은 <strong>0.2</strong>였습니다.</p>
 <div class="scrollx">
 <table class="tbl">
@@ -597,7 +729,7 @@ p = 0.5에서는 <strong>10스텝이면 200개 중 0개</strong>가 남는 것�
 BLEU +3.1. 당시 최고 SMT 시스템은 여전히 앞서 있었지만, 드롭아웃 하나로 좁힌 격차가 이 정도였습니다.
 </p>
 
-<h3>7.4 이미지 캡션 생성</h3>
+<h3>8.4 이미지 캡션 생성</h3>
 <p>
 Vinyals et al. (2014)의 캡션 모델(단일 층 LSTM)에도 같은 기법을 적용했습니다.
 드롭아웃은 도움이 되지만, <strong>앙상블을 쓰면 그 이득이 사라졌습니다.</strong>
@@ -606,7 +738,7 @@ Vinyals et al. (2014)의 캡션 모델(단일 층 LSTM)에도 같은 기법을 �
 </p>
 
 <!-- ================================================================ -->
-<h2 id="s8">§8 그 후 — 순환 연결에 드롭아웃을 "제대로" 거는 법</h2>
+<h2 id="s9">§9 그 후 — 순환 연결에 드롭아웃을 "제대로" 거는 법</h2>
 
 <p>
 이 논문의 결론은 "순환 연결에는 드롭아웃을 걸 수 없다"가 아니라
@@ -653,7 +785,7 @@ logits = decoder(drop(out))      # D(h_t^L)</code></pre>
 </div>
 
 <!-- ================================================================ -->
-<h2 id="s9">§9 정리 — 한 문장으로</h2>
+<h2 id="s10">§10 정리 — 한 문장으로</h2>
 
 <p>
 질문으로 돌아갑시다. <em>"드롭아웃을 층 사이의 비순환 연결에만 배타적으로 적용하고,
@@ -677,11 +809,11 @@ logits = decoder(drop(out))      # D(h_t^L)</code></pre>
 같이 읽으면 좋은 자료 —
 <a href="https://dev-jonghoonpark.github.io/how-lstm-works/" target="_blank" rel="noopener">How LSTM Works</a>(셀 상태 레일과 게이트 4종),
 <a href="https://dev-jonghoonpark.github.io/how-rnn-works/" target="_blank" rel="noopener">How RNN Works</a>(RNN 부흥기 개관),
-<a href="https://dev-jonghoonpark.github.io/how-seq2seq-works/" target="_blank" rel="noopener">How seq2seq Works</a>(§7.3의 번역 모델 구조).
+<a href="https://dev-jonghoonpark.github.io/how-seq2seq-works/" target="_blank" rel="noopener">How seq2seq Works</a>(§8.3의 번역 모델 구조).
 </p>
 
 <!-- ================================================================ -->
-<h2 id="s10">§10 이해도 퀴즈</h2>
+<h2 id="s11">§11 이해도 퀴즈</h2>
 
 <div class="quiz" data-answer="2">
 <div class="q">Q1. "수평 방향의 순환 연결"이 가리키는 것은?</div>
@@ -816,6 +948,71 @@ function arrowHead(g, x, y, dir) { // dir: 'up' | 'right'
   else { g.moveTo(x, y); g.lineTo(x - 7, y - 4); g.lineTo(x - 7, y + 4); }
   g.closePath(); g.fill();
 }
+
+/* ================================================================
+   Figure 1 — the office metaphor: two kinds of arrow
+================================================================ */
+const G1 = { mode: "both", words: ["나는", "어제", "친구와", "밥을"] };
+const G1TEXT = {
+  both: "위로 가는 화살표(<b style='color:var(--s1)'>파랑</b>)와 오른쪽으로 가는 화살표(<b style='color:var(--s2)'>주황</b>), 딱 두 종류뿐입니다. 버튼으로 한 종류씩 켜 보세요.",
+  vert: "<b style='color:var(--s1)'>↑ 세로 = 결재 라인.</b> 같은 순간 안에서 <b>1층 → 2층 → 답</b>으로 올라갑니다. 단어 하나가 답이 되기까지 거치는 단계는 <b>딱 3번</b>이고, 문장이 아무리 길어져도 이 숫자는 변하지 않습니다. 층이 2개니까요.",
+  horiz: "<b style='color:var(--s2)'>▶ 가로 = 메모장.</b> 같은 담당자가 <b>자기 자신에게 넘기는 쪽지</b>입니다. \"나는\"의 정보가 \"밥을\"까지 오려면 메모장을 <b>3번</b> 넘겨야 합니다 — 문장이 35단어면 <b>35번</b>입니다. <b>이 화살표가 곧 기억입니다.</b>"
+};
+function g1Draw() {
+  const T = 4, colW = 132, padL = 108, W = padL + (T - 1) * colW + 66, H = 306;
+  const g = ctx2d($("g1canvas"), W, H);
+  const colX = i => padL + i * colW;
+  const yL = [190, 100];          // layer 1, layer 2 (center)
+  const boxW = 52, boxH = 30, inY = 258, outY = 46;
+  const dimV = G1.mode === "horiz", dimH = G1.mode === "vert";
+
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "13px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif";
+
+  function arrow(x1, y1, x2, y2, color, dim, horizontal) {
+    g.globalAlpha = dim ? 0.13 : 1;
+    g.strokeStyle = color; g.fillStyle = color; g.lineWidth = dim ? 1.5 : 2.4;
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    arrowHead(g, x2, y2, horizontal ? "right" : "up");
+    g.globalAlpha = 1;
+  }
+  // vertical arrows
+  for (let i = 0; i < T; i++) {
+    arrow(colX(i), inY - 12, colX(i), yL[0] + boxH / 2 + 4, css("--s1"), dimV, false);
+    arrow(colX(i), yL[0] - boxH / 2, colX(i), yL[1] + boxH / 2 + 4, css("--s1"), dimV, false);
+    arrow(colX(i), yL[1] - boxH / 2, colX(i), outY + 12, css("--s1"), dimV, false);
+  }
+  // horizontal arrows
+  for (let l = 0; l < 2; l++)
+    for (let i = 0; i < T - 1; i++)
+      arrow(colX(i) + boxW / 2, yL[l], colX(i + 1) - boxW / 2 - 3, yL[l], css("--s2"), dimH, true);
+
+  // boxes
+  for (let i = 0; i < T; i++) for (let l = 0; l < 2; l++) {
+    g.fillStyle = css("--surface2"); g.strokeStyle = css("--ink2"); g.lineWidth = 1.4;
+    g.beginPath(); g.roundRect(colX(i) - boxW / 2, yL[l] - boxH / 2, boxW, boxH, 7); g.fill(); g.stroke();
+    g.fillStyle = css("--ink2"); g.font = "12px -apple-system, sans-serif";
+    g.fillText((l + 1) + "층", colX(i), yL[l]);
+  }
+  // labels
+  g.font = "13px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif";
+  for (let i = 0; i < T; i++) {
+    g.fillStyle = css("--ink"); g.fillText("“" + G1.words[i] + "”", colX(i), inY + 8);
+    g.fillStyle = css("--muted"); g.font = "12px -apple-system, sans-serif";
+    g.fillText("답 " + (i + 1), colX(i), outY - 10);
+    g.font = "13px -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif";
+  }
+  g.textAlign = "right"; g.font = "12px -apple-system, sans-serif"; g.fillStyle = css("--muted");
+  g.fillText("2층 담당자", padL - 40, yL[1]);
+  g.fillText("1층 담당자", padL - 40, yL[0]);
+  g.fillText("들어오는 단어", padL - 40, inY + 8);
+  g.fillText("내놓는 답", padL - 40, outY - 10);
+  $("g1note").innerHTML = G1TEXT[G1.mode];
+}
+document.querySelectorAll(".g1mode").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".g1mode").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); G1.mode = b.dataset.m; g1Draw();
+}));
 
 /* ================================================================
    Demo 1 — Figure 2: where the mask lands on the grid
@@ -1275,7 +1472,7 @@ document.querySelectorAll(".quiz").forEach(qz => {
 
 /* ---------- init / redraw ---------- */
 function drawAll() {
-  d1Draw(); d2Draw(); d3Draw(); d4Draw();
+  g1Draw(); d1Draw(); d2Draw(); d3Draw(); d4Draw();
   d5Draw(document.querySelector(".d5tab.on").dataset.k);
   d6Draw();
 }
