@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="670" viewBox="0 0 900 670">
+<style>text { font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Noto Sans KR', 'Malgun Gothic', sans-serif; }</style>
+<defs>
+<marker id="ah-s1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker>
+<marker id="ah-s2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#eb6834"/></marker>
+<marker id="ah-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#898781"/></marker>
+</defs>
+<rect width="900" height="670" fill="#f6f7f5"/>
+<rect x="14" y="14" width="872" height="642" rx="14" fill="#fdfdfc" stroke="#e1e0d9" stroke-width="1"/>
+<text x="40" y="56" font-size="23" fill="#171a18" text-anchor="start" font-weight="700">해결책: 비순환 연결(세로)에만 드롭아웃</text>
+<text x="40" y="85" font-size="14.5" fill="#565b57" text-anchor="start" font-weight="400">순환 연결(가로)은 그대로 두고, 층과 층을 잇는 비순환 연결(세로)에만 드롭아웃을 건다</text>
+<text x="180" y="134" font-size="14.5" fill="#898781" text-anchor="end" font-weight="700">출력</text>
+<text x="180" y="257" font-size="14.5" fill="#898781" text-anchor="end" font-weight="700">2층</text>
+<text x="180" y="387" font-size="14.5" fill="#898781" text-anchor="end" font-weight="700">1층</text>
+<text x="180" y="470" font-size="14.5" fill="#898781" text-anchor="end" font-weight="700">입력</text>
+<rect x="222.0" y="108" width="116" height="40" rx="10" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="280" y="134" font-size="17" fill="#565b57" text-anchor="middle" font-weight="700">&#375;<tspan dy="5" font-size="11">1</tspan><tspan dy="-5">&#8203;</tspan></text>
+<rect x="222.0" y="224.0" width="116" height="54" rx="11" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.6"/>
+<text x="280" y="257.12" font-size="17" fill="#171a18" text-anchor="middle" font-weight="700">LSTM</text>
+<rect x="222.0" y="354.0" width="116" height="54" rx="11" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.6"/>
+<text x="280" y="387.12" font-size="17" fill="#171a18" text-anchor="middle" font-weight="700">LSTM</text>
+<text x="280" y="470" font-size="18" fill="#565b57" text-anchor="middle" font-weight="700">x<tspan dy="5" font-size="12">1</tspan><tspan dy="-5">&#8203;</tspan></text>
+<text x="280" y="500" font-size="12.5" fill="#898781" text-anchor="middle" font-weight="600">스텝 1</text>
+<line x1="280" y1="448" x2="280" y2="412.0" stroke="#898781" stroke-width="1.8" marker-end="url(#ah-mut)" stroke-linecap="butt"/>
+<line x1="280" y1="350.0" x2="280" y2="282.0" stroke="#2a78d6" stroke-width="2.1" marker-end="url(#ah-s1)" stroke-linecap="butt"/>
+<circle cx="280" cy="316.0" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M274.54,310.54 L285.46,321.46 M285.46,310.54 L274.54,321.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="280" y1="220.0" x2="280" y2="152" stroke="#2a78d6" stroke-width="2.1" marker-end="url(#ah-s1)" stroke-linecap="butt"/>
+<circle cx="280" cy="186.0" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M274.54,180.54 L285.46,191.46 M285.46,180.54 L274.54,191.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<rect x="442.0" y="108" width="116" height="40" rx="10" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="500" y="134" font-size="17" fill="#565b57" text-anchor="middle" font-weight="700">&#375;<tspan dy="5" font-size="11">2</tspan><tspan dy="-5">&#8203;</tspan></text>
+<rect x="442.0" y="224.0" width="116" height="54" rx="11" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.6"/>
+<text x="500" y="257.12" font-size="17" fill="#171a18" text-anchor="middle" font-weight="700">LSTM</text>
+<rect x="442.0" y="354.0" width="116" height="54" rx="11" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.6"/>
+<text x="500" y="387.12" font-size="17" fill="#171a18" text-anchor="middle" font-weight="700">LSTM</text>
+<text x="500" y="470" font-size="18" fill="#565b57" text-anchor="middle" font-weight="700">x<tspan dy="5" font-size="12">2</tspan><tspan dy="-5">&#8203;</tspan></text>
+<text x="500" y="500" font-size="12.5" fill="#898781" text-anchor="middle" font-weight="600">스텝 2</text>
+<line x1="500" y1="448" x2="500" y2="412.0" stroke="#898781" stroke-width="1.8" marker-end="url(#ah-mut)" stroke-linecap="butt"/>
+<line x1="500" y1="350.0" x2="500" y2="282.0" stroke="#2a78d6" stroke-width="2.1" marker-end="url(#ah-s1)" stroke-linecap="butt"/>
+<circle cx="500" cy="316.0" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M494.54,310.54 L505.46,321.46 M505.46,310.54 L494.54,321.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="500" y1="220.0" x2="500" y2="152" stroke="#2a78d6" stroke-width="2.1" marker-end="url(#ah-s1)" stroke-linecap="butt"/>
+<circle cx="500" cy="186.0" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M494.54,180.54 L505.46,191.46 M505.46,180.54 L494.54,191.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<rect x="662.0" y="108" width="116" height="40" rx="10" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="720" y="134" font-size="17" fill="#565b57" text-anchor="middle" font-weight="700">&#375;<tspan dy="5" font-size="11">3</tspan><tspan dy="-5">&#8203;</tspan></text>
+<rect x="662.0" y="224.0" width="116" height="54" rx="11" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.6"/>
+<text x="720" y="257.12" font-size="17" fill="#171a18" text-anchor="middle" font-weight="700">LSTM</text>
+<rect x="662.0" y="354.0" width="116" height="54" rx="11" fill="#eff1ee" stroke="#e1e0d9" stroke-width="1.6"/>
+<text x="720" y="387.12" font-size="17" fill="#171a18" text-anchor="middle" font-weight="700">LSTM</text>
+<text x="720" y="470" font-size="18" fill="#565b57" text-anchor="middle" font-weight="700">x<tspan dy="5" font-size="12">3</tspan><tspan dy="-5">&#8203;</tspan></text>
+<text x="720" y="500" font-size="12.5" fill="#898781" text-anchor="middle" font-weight="600">스텝 3</text>
+<line x1="720" y1="448" x2="720" y2="412.0" stroke="#898781" stroke-width="1.8" marker-end="url(#ah-mut)" stroke-linecap="butt"/>
+<line x1="720" y1="350.0" x2="720" y2="282.0" stroke="#2a78d6" stroke-width="2.1" marker-end="url(#ah-s1)" stroke-linecap="butt"/>
+<circle cx="720" cy="316.0" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M714.54,310.54 L725.46,321.46 M725.46,310.54 L714.54,321.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="720" y1="220.0" x2="720" y2="152" stroke="#2a78d6" stroke-width="2.1" marker-end="url(#ah-s1)" stroke-linecap="butt"/>
+<circle cx="720" cy="186.0" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M714.54,180.54 L725.46,191.46 M725.46,180.54 L714.54,191.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="346.0" y1="251" x2="438.0" y2="251" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<line x1="346.0" y1="381" x2="438.0" y2="381" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<line x1="566.0" y1="251" x2="658.0" y2="251" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<line x1="566.0" y1="381" x2="658.0" y2="381" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<line x1="40" y1="528" x2="860" y2="528" stroke="#e1e0d9" stroke-width="1"/>
+<circle cx="54" cy="550" r="11" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M49.38,545.38 L58.62,554.62 M58.62,545.38 L49.38,554.62" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<text x="74" y="555" font-size="13" fill="#171a18" text-anchor="start" font-weight="400">드롭아웃 — 층 사이(세로)에만 건다</text>
+<line x1="360" y1="550" x2="400" y2="550" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<text x="410" y="555" font-size="13" fill="#171a18" text-anchor="start" font-weight="400">히든 스테이트 — 시간 축(가로)은 자르지 않는다</text>
+<clipPath id="clip-f2"><rect x="40" y="570" width="820" height="50" rx="10"/></clipPath>
+<g clip-path="url(#clip-f2)">
+<rect x="40" y="570" width="820" height="50" fill="#ddeee7"/>
+<rect x="40" y="570" width="3" height="50" fill="#157a63"/>
+</g>
+<text x="60" y="601" font-size="14" fill="#0d5c4a" text-anchor="start" font-weight="400">정보가 거치는 드롭아웃 횟수 = 층 수(여기서는 2번)로 고정 — 문장이 100단어여도 늘어나지 않는다.</text>
+<text x="860" y="640" font-size="11" fill="#898781" text-anchor="end" font-weight="400">Zaremba, Sutskever &amp; Vinyals (2015) · Recurrent Neural Network Regularization</text>
+</svg>

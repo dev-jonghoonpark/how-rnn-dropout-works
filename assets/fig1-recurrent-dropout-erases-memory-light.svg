@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="406" viewBox="0 0 920 406">
+<style>text { font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Noto Sans KR', 'Malgun Gothic', sans-serif; }</style>
+<defs>
+<marker id="ah-s1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker>
+<marker id="ah-s2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#eb6834"/></marker>
+<marker id="ah-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#898781"/></marker>
+</defs>
+<rect width="920" height="406" fill="#f6f7f5"/>
+<rect x="14" y="14" width="892" height="378" rx="14" fill="#fdfdfc" stroke="#e1e0d9" stroke-width="1"/>
+<text x="40" y="56" font-size="23" fill="#171a18" text-anchor="start" font-weight="700">순환 연결(가로)에 드롭아웃을 걸면</text>
+<text x="40" y="85" font-size="14.5" fill="#565b57" text-anchor="start" font-weight="400">히든 스테이트가 흐르는 길을 자르는 것 = 앞에서 읽은 내용을 무작위로 지우는 것</text>
+<text x="140" y="144" font-size="12" fill="#898781" text-anchor="middle" font-weight="600">스텝 1</text>
+<rect x="88.0" y="156.0" width="104" height="60" rx="11" fill="#eff1ee" stroke="#eb6834" stroke-width="1.6"/>
+<text x="140" y="192.84" font-size="19" fill="#171a18" text-anchor="middle" font-weight="700">h<tspan dy="5" font-size="12">1</tspan><tspan dy="-5">&#8203;</tspan></text>
+<text x="360" y="144" font-size="12" fill="#898781" text-anchor="middle" font-weight="600">스텝 2</text>
+<rect x="308.0" y="156.0" width="104" height="60" rx="11" fill="#eff1ee" stroke="#eb6834" stroke-width="1.6"/>
+<text x="360" y="192.84" font-size="19" fill="#171a18" text-anchor="middle" font-weight="700">h<tspan dy="5" font-size="12">2</tspan><tspan dy="-5">&#8203;</tspan></text>
+<text x="580" y="144" font-size="12" fill="#898781" text-anchor="middle" font-weight="600">스텝 3</text>
+<rect x="528.0" y="156.0" width="104" height="60" rx="11" fill="#eff1ee" stroke="#eb6834" stroke-width="1.6"/>
+<text x="580" y="192.84" font-size="19" fill="#171a18" text-anchor="middle" font-weight="700">h<tspan dy="5" font-size="12">3</tspan><tspan dy="-5">&#8203;</tspan></text>
+<text x="800" y="144" font-size="12" fill="#898781" text-anchor="middle" font-weight="600">스텝 4</text>
+<rect x="748.0" y="156.0" width="104" height="60" rx="11" fill="#eff1ee" stroke="#eb6834" stroke-width="1.6"/>
+<text x="800" y="192.84" font-size="19" fill="#171a18" text-anchor="middle" font-weight="700">h<tspan dy="5" font-size="12">4</tspan><tspan dy="-5">&#8203;</tspan></text>
+<line x1="200.0" y1="186" x2="304.0" y2="186" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<circle cx="250.0" cy="186" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M244.54,180.54 L255.46,191.46 M255.46,180.54 L244.54,191.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<text x="250.0" y="144" font-size="12" fill="#b02f2f" text-anchor="middle" font-weight="600">20% 삭제</text>
+<line x1="420.0" y1="186" x2="524.0" y2="186" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<circle cx="470.0" cy="186" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M464.54,180.54 L475.46,191.46 M475.46,180.54 L464.54,191.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<text x="470.0" y="144" font-size="12" fill="#b02f2f" text-anchor="middle" font-weight="600">20% 삭제</text>
+<line x1="640.0" y1="186" x2="744.0" y2="186" stroke="#eb6834" stroke-width="2.1" marker-end="url(#ah-s2)" stroke-linecap="butt"/>
+<circle cx="690.0" cy="186" r="13" fill="#fdfdfc" stroke="#d03b3b" stroke-width="2.2"/>
+<path d="M684.54,180.54 L695.46,191.46 M695.46,180.54 L684.54,191.46" stroke="#d03b3b" stroke-width="2.2" stroke-linecap="round"/>
+<text x="690.0" y="144" font-size="12" fill="#b02f2f" text-anchor="middle" font-weight="600">20% 삭제</text>
+<text x="40" y="252" font-size="12.5" fill="#898781" text-anchor="start" font-weight="700">정보 생존율</text>
+<rect x="88.0" y="262" width="104" height="9" rx="4.5" fill="#e1e0d9"/>
+<rect x="88.0" y="262" width="104.0" height="9" rx="4.5" fill="#eb6834"/>
+<text x="140" y="293" font-size="13" fill="#171a18" text-anchor="middle" font-weight="700">100%</text>
+<rect x="308.0" y="262" width="104" height="9" rx="4.5" fill="#e1e0d9"/>
+<rect x="308.0" y="262" width="83.2" height="9" rx="4.5" fill="#eb6834"/>
+<text x="360" y="293" font-size="13" fill="#171a18" text-anchor="middle" font-weight="700">80%</text>
+<rect x="528.0" y="262" width="104" height="9" rx="4.5" fill="#e1e0d9"/>
+<rect x="528.0" y="262" width="66.6" height="9" rx="4.5" fill="#eb6834"/>
+<text x="580" y="293" font-size="13" fill="#171a18" text-anchor="middle" font-weight="700">64%</text>
+<rect x="748.0" y="262" width="104" height="9" rx="4.5" fill="#e1e0d9"/>
+<rect x="748.0" y="262" width="53.0" height="9" rx="4.5" fill="#eb6834"/>
+<text x="800" y="293" font-size="13" fill="#b02f2f" text-anchor="middle" font-weight="700">51%</text>
+<clipPath id="clip-f1"><rect x="40" y="310" width="840" height="58" rx="10"/></clipPath>
+<g clip-path="url(#clip-f1)">
+<rect x="40" y="310" width="840" height="58" fill="#faecec"/>
+<rect x="40" y="310" width="3" height="58" fill="#d03b3b"/>
+</g>
+<text x="60" y="334" font-size="14" fill="#b02f2f" text-anchor="start" font-weight="400">100단어짜리 문장이면 이 가위질이 100번 반복된다 — 첫 단어가 끝까지 살아남을 확률은 0.8<tspan dy="-6" font-size="10">100</tspan><tspan dy="6">&#8203;</tspan> &#8776; 2&#215;10<tspan dy="-6" font-size="10">&#8722;10</tspan><tspan dy="6">&#8203;</tspan>, 사실상 0.</text>
+<text x="60" y="354" font-size="13" fill="#b02f2f" text-anchor="start" font-weight="400">LSTM이 셀 스테이트까지 따로 만들어 지키려 했던 장기 기억을, 드롭아웃이 앞장서서 부수는 셈.</text>
+<text x="880" y="376" font-size="11" fill="#898781" text-anchor="end" font-weight="400">Zaremba, Sutskever &amp; Vinyals (2015) · Recurrent Neural Network Regularization</text>
+</svg>
